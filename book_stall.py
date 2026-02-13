@@ -122,14 +122,14 @@ header_left, header_right = st.columns([9, 1])
 
 with header_left:
     st.markdown("<div style='height:26px'></div>", unsafe_allow_html=True)  # more space above header
-    st.markdown("## 📚 BK Search")
+    st.markdown("## 📚 RACK Search")
 
 with header_right:
     if not st.session_state.is_admin:
-        st.markdown("<div style='height:32px'></div>", unsafe_allow_html=True)  # more space above header
+        st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)  # more space above header
         st.button("⚙️", key="admin_btn")
     else:
-        st.markdown("<div style='height:32px'></div>", unsafe_allow_html=True)  # more space above header
+        st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)  # more space above header
         st.button("🚪", key="logout_btn")
 
 # Handle button clicks separately (so layout stays clean)
