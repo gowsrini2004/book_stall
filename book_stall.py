@@ -26,9 +26,10 @@ def load_config():
 def save_config(cfg: dict):
     CONFIG_PATH.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
 
-def extract_sheet_id(url: str):
-    match = re.search(r"/d/([a-zA-Z0-9-_]+)", url or "")
-    return match.group(1) if match else None
+def extract_sheet_id(url: str) -> str:
+    if not url: return ""
+    match = re.search(r"/spreadsheets/d/([a-zA-Z0-9-_]+)", str(url))
+    return match.group(1) if match else ""
 
 
 # ---------------------------
@@ -128,31 +129,23 @@ st.markdown(
       .muted { opacity: 0.8; font-size: 0.95rem; }
       .tiny { opacity: 0.75; font-size: 0.85rem; }
       .rowline { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+      
+      /* Seamless Dropdown UI */
+      .stTextInput > div > div > input {
+        border-bottom-left-radius: 0px !important;
+        border-bottom-right-radius: 0px !important;
+      }
       .dropdown-container {
         border: 1px solid rgba(255,255,255,0.1);
-        border-radius: 12px;
-        background: rgba(25,25,25,0.95);
-        padding: 5px;
-        margin-top: -10px;
+        border-top: none;
+        border-bottom-left-radius: 12px;
+        border-bottom-right-radius: 12px;
+        background: rgba(30,30,30,0.98);
+        padding: 4px;
+        margin-top: -1px;
         margin-bottom: 20px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.4);
         z-index: 1000;
-      }
-      .dropdown-item {
-        padding: 10px 15px;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: background 0.2s;
-        border: 1px solid transparent;
-        text-align: left;
-        width: 100%;
-        display: block;
-        color: white;
-        text-decoration: none;
-      }
-      .dropdown-item:hover {
-        background: rgba(255,255,255,0.1);
-        border: 1px solid rgba(255,255,255,0.2);
       }
       .btn-row { display:flex; justify-content:flex-end; }
     </style>
@@ -260,26 +253,25 @@ if st.session_state.is_admin:
         if load_error:
             st.error(f"Could not load sheet: {load_error}")
         else:
-            st.success("✅ Sheet columns detected")
-            sheet_cols = df_raw.columns.tolist()
+            sheet_cols = df_raw.columns.tolist() if df_raw is not None else []
+            options = ["None"] + [str(c) for c in sheet_cols]
 
             st.markdown("### Map Columns")
             st.caption("Pick which sheet columns match the app fields.")
 
             current = cfg.get("mapping", {})
-            options = [""] + sheet_cols
-
+            if not isinstance(current, dict): current = {}
+            
             new_mapping = {}
-            new_mapping["BK_Number"] = st.selectbox(
-                "App field: BK_Number (Book Number)",
-                options=options,
-                index=options.index(current.get("BK_Number", "")) if current.get("BK_Number", "") in options else 0,
-            )
-            new_mapping["BK_name"] = st.selectbox(
-                "App field: BK_name (Book Name)",
-                options=options,
-                index=options.index(current.get("BK_name", "")) if current.get("BK_name", "") in options else 0,
-            )
+            for field in APP_FIELDS:
+                label = field.replace("BK_", "").capitalize()
+                val = current.get(field, "None")
+                new_mapping[field] = st.selectbox(
+                    f"Column for {label}",
+                    options=options,
+                    index=options.index(val) if val in options else 0,
+                    key=f"setup_{field}"
+                )
             new_mapping["BK_rate"] = st.selectbox(
                 "App field: BK_rate (Book Rate / Price)",
                 options=options,
@@ -403,9 +395,9 @@ else:
         st.markdown(f"**Results:** {len(results)} of {total_found}")
 
     # --- Mobile cards ---
-    if query_input.strip() and total_found == 0:
+    if st.session_state.search_query.strip() and total_found == 0:
         st.warning("No matches found.")
-    elif query_input.strip():
+    elif st.session_state.search_query.strip():
         for _, r in results.iterrows():
             st.markdown(
                 f"""
