@@ -311,54 +311,193 @@ else:
     except Exception as e:
         st.warning(f"App is not configured properly (mapping issue): {e}")
         st.stop()
+    
+    # --- Integration: HTML Search Component ---
+    import streamlit.components.v1 as components
 
+    # Sync with URL query params
+    q_params = st.query_params
+    url_q = q_params.get("q", "")
+    url_mode = q_params.get("m", "")  # 'all' or 'single'
+
+    # Prepare data for JS search
+    search_json = df[["BK_Number", "BK_name", "_search"]].to_json(orient="records")
+
+    html_code = f"""
+    <style>
+        body {{
+            background: transparent;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: visible;
+        }}
+        #search-container {{
+            position: relative;
+            width: 100%;
+            height: 48px;
+            z-index: 1000;
+        }}
+        #search-input {{
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 1.15rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            color: white;
+            outline: none;
+            box-sizing: border-box;
+            transition: all 0.2s;
+        }}
+        #search-input:focus {{
+            border-color: #00c2ff;
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 10px rgba(0, 194, 255, 0.2);
+        }}
+        #dropdown {{
+            position: absolute;
+            top: 55px;
+            left: 0;
+            right: 0;
+            background: #1e1e1e;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            display: none;
+            max-height: 320px;
+            overflow-y: auto;
+            z-index: 1001;
+        }}
+        .item {{
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 1rem;
+            transition: background 0.2s;
+        }}
+        .item:last-child {{ border-bottom: none; }}
+        .item:hover {{
+            background: rgba(255, 255, 255, 0.08);
+        }}
+        .item.all {{
+            color: #00c2ff;
+            font-weight: 600;
+            background: rgba(0, 194, 255, 0.05);
+        }}
+        .info-box {{
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(0, 194, 255, 0.05);
+            border: 1px solid rgba(0, 194, 255, 0.15);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.5;
+        }}
+    </style>
+
+    <div id="search-container">
+        <input type="text" id="search-input" placeholder="Start Typing to Search..." autocomplete="off">
+        <div id="dropdown"></div>
+        <div id="info" class="info-box">
+            💡 <b>Welcome to RACK Search!</b><br>
+            Start typing to find books by <b>Tag Number</b>, <b>Name</b>, <b>Location</b>, or <b>Price</b>.
+        </div>
+    </div>
+
+    <script>
+        const data = {search_json};
+        const input = document.getElementById('search-input');
+        const dropdown = document.getElementById('dropdown');
+        const info = document.getElementById('info');
+
+        // Set initial value from URL
+        const urlParams = new URLSearchParams(window.parent.location.search);
+        if (urlParams.has('q')) {{
+            input.value = urlParams.get('q');
+            info.style.display = 'none';
+        }}
+
+        input.oninput = (e) => {{
+            const val = e.target.value.trim().toLowerCase();
+            const originalVal = e.target.value;
+            if (!val) {{
+                dropdown.style.display = 'none';
+                info.style.display = 'block';
+                return;
+            }}
+            info.style.display = 'none';
+            
+            const matches = data.filter(item => item._search.includes(val)).slice(0, 7);
+            
+            let html = `<div class="item all" data-val="${{originalVal}}" data-mode="all">🔍 Show all matching "${{originalVal}}"</div>`;
+            matches.forEach(m => {{
+                html += `<div class="item" data-val="${{m.BK_Number}}" data-mode="single">📖 ${{m.BK_name}} (#${{m.BK_Number}})</div>`;
+            }});
+            
+            dropdown.innerHTML = html;
+            dropdown.style.display = 'block';
+
+            // Add click listeners to items
+            document.querySelectorAll('.item').forEach(item => {{
+                item.onclick = () => {{
+                    selectItem(item.getAttribute('data-val'), item.getAttribute('data-mode'));
+                }};
+            }});
+        }};
+
+        function selectItem(val, mode) {{
+            const url = new URL(window.parent.location.href);
+            url.searchParams.set("q", val);
+            url.searchParams.set("m", mode);
+            window.parent.location.href = url.href;
+        }}
+        
+        // Close dropdown when clicking outside
+        window.onclick = (e) => {{
+            if (!e.target.matches('#search-input')) {{
+                dropdown.style.display = 'none';
+            }}
+        }};
+    </script>
+    """
+    
     st.markdown("### 🔎 Search Books")
-    st.caption("Type book number / name / rack. (No case sensitivity)")
+    components.html(html_code, height=350)
 
-    # --- Pagination state ---
-    if "num_results" not in st.session_state:
-        st.session_state.num_results = 50
+    # --- Filtering logic ---
+    query = url_q
+    mode = url_mode
 
-    # Big search box
-    st.markdown('<div class="big-search">', unsafe_allow_html=True)
-    query = st.text_input(
-        "Search",
-        placeholder="Start Typing to Search",
-        label_visibility="collapsed",
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
+    if not query:
+        st.stop()
 
-    # Reset pagination if query changes
-    if "last_query" not in st.session_state:
-        st.session_state.last_query = ""
-    if query != st.session_state.last_query:
-        st.session_state.num_results = 50
-        st.session_state.last_query = query
-
-    # --- Filtering ---
-    def smart_filter(data: pd.DataFrame, q: str) -> pd.DataFrame:
+    def smart_filter_new(data_in: pd.DataFrame, q: str, m: str) -> pd.DataFrame:
         if not q or not q.strip():
-            return data.iloc[0:0]
-
+            return data_in.iloc[0:0]
+        
+        if m == "single":
+            return data_in[data_in["BK_Number"].astype(str) == str(q)]
+        
         qn = " ".join(q.lower().strip().split())
-        # Auto: match across combined blob (number+name+rack)
-        return data[data["_search"].str.contains(qn, na=False)]
+        return data_in[data_in["_search"].str.contains(qn, na=False)]
 
-    all_results = smart_filter(df, query)
+    all_results = smart_filter_new(df, query, mode)
     total_found = len(all_results)
     
-    # Slice for pagination
+    if "num_results" not in st.session_state:
+        st.session_state.num_results = 50
+    
     results = all_results.head(st.session_state.num_results)
 
     if query.strip():
         st.markdown(f"**Results:** {len(results)} of {total_found}")
 
-    # --- Mobile cards with bright rack ---
+    # --- Mobile cards ---
     if total_found == 0:
-        if query.strip():
-            st.warning("No matches found.")
-        else:
-            st.info("💡 **Welcome to RACK Search!**  \nSimply start typing in the box above to find books by **Tag Number**, **Name**, **Rack Location**, or even **Price**.")
+        st.warning(f"No matches found for '{query}'.")
     else:
         for _, r in results.iterrows():
             st.markdown(
@@ -377,14 +516,11 @@ else:
                 unsafe_allow_html=True,
             )
 
-        # Show More Button
         if total_found > st.session_state.num_results:
             if st.button("🔽 Show More", use_container_width=True):
                 st.session_state.num_results += 50
                 st.rerun()
 
-        if total_found == 0 and query.strip():
-            st.warning("No matches found.")
-        elif total_found == 1:
+        if total_found == 1:
             one = results.iloc[0]
             st.success(f"✅ Location: **{one['BK_row']}**  |  Rate: **₹ {one['BK_rate']}**")
