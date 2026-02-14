@@ -399,7 +399,7 @@ def render_search_interface(df: pd.DataFrame):
             height: 34px;
         }
         .tag-badge, .rate-badge, .rack-badge, .img-btn {
-            padding: 6px 8px; /* Slightly tighter horizontal padding */
+            padding: 6px 8px;
             border-radius: 10px;
             font-weight: 800;
             font-size: 0.85rem;
@@ -409,9 +409,17 @@ def render_search_interface(df: pd.DataFrame):
             text-align: center;
             min-height: 34px;
             box-sizing: border-box;
-            white-space: nowrap; /* Prevent 2 lines */
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+        /* Only Rate and Rack are strictly one line */
+        .rate-badge, .rack-badge {
+            white-space: nowrap;
+        }
+        /* Tag badge (BK Number) can go to two lines if needed */
+        .tag-badge {
+            white-space: normal;
+            line-height: 1.1;
         }
         .tag-badge {
             background: rgba(255, 193, 7, 0.15);
@@ -689,7 +697,7 @@ def render_search_interface(df: pd.DataFrame):
                 const hasRack = r.BK_row && r.BK_row.trim() !== "";
                 
                 // Slot 1: BK Number (Always present)
-                const slot1 = `<div class="tag-badge"># ${r.BK_Number}</div>`;
+                const slot1 = `<div class="tag-badge">#${r.BK_Number}</div>`;
                 
                 // Slot 2: Rate (Or placeholder)
                 const slot2 = hasRate ? `<div class="rate-badge">₹${r.BK_rate}</div>` : `<div class="placeholder-badge"></div>`;
