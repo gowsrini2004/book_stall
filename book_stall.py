@@ -2,9 +2,6 @@ import streamlit as st
 import pandas as pd
 import re
 import json
-import base64
-import requests
-import io
 from pathlib import Path
 
 st.set_page_config(page_title="BK Search Pro", layout="centered")  # better for phone
@@ -31,6 +28,8 @@ def load_config():
 def save_config(cfg: dict):
     CONFIG_PATH.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
 
+import requests
+import io
 
 def extract_sheet_id(url: str | None):
     match = re.search(r"/d/([a-zA-Z0-9-_]+)", url or "")
@@ -121,17 +120,24 @@ if "show_admin_login" not in st.session_state:
     st.session_state.show_admin_login = False
 
 # --- BULLETPROOF ADMIN TRIGGER ---
+# Detect 'login=admin' in URL using every possible Streamlit method
 try:
-    if st.query_params.get("login") == "admin":
+    # Method 1: Modern st.query_params (dict-like)
+    qp = st.query_params.to_dict()
+    if qp.get("login") == "admin":
         st.session_state.show_admin_login = True
-        # Clear query params in the same tab using a top-level refresh
-        js_code = "window.location.href = window.location.origin + window.location.pathname;"
-        b64_js = base64.b64encode(js_code.encode()).decode()
-        st.markdown(f'<img src="x" onerror="eval(atob(\'{b64_js}\'))">', unsafe_allow_html=True)
-        st.stop()
+        st.query_params.clear()
+        st.rerun()
 except Exception:
-    pass
-
+    try:
+        # Method 2: Older st.experimental_get_query_params (returns lists)
+        eqp = st.experimental_get_query_params()
+        if "admin" in eqp.get("login", []):
+            st.session_state.show_admin_login = True
+            st.experimental_set_query_params() # Clear params
+            st.rerun()
+    except Exception:
+        pass
 
 cfg = load_config()
 cfg.setdefault("sheet_url", "")
@@ -377,34 +383,35 @@ def render_search_interface(df: pd.DataFrame):
         #results-area::-webkit-scrollbar { width: 6px; }
         #results-area::-webkit-scrollbar-thumb { background: rgba(0, 194, 255, 0.4); border-radius: 10px; }
         #results-area::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); border-radius: 10px; }
-        #stall-search-root .result-card {
+        .result-card {
             border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 24px;
-            padding: 50px 30px; /* Ultra-spacious length above and below */
-            margin-bottom: 45px; 
+            border-radius: 20px;
+            padding: 24px 22px; 
+            margin-bottom: 25px; 
             background: rgba(255,255,255,0.03);
             animation: fadeIn 0.3s ease-out;
             transition: all 0.2s ease;
         }
-        #stall-search-root .result-card:hover { 
-            background: rgba(255,255,255,0.06);
-            transform: translateY(-6px);
-            border-color: rgba(255,255,255,0.3);
-            box-shadow: 0 25px 60px rgba(0,0,0,0.6);
+        .result-card:hover { 
+            background: rgba(255,255,255,0.05);
+            transform: translateY(-3px);
+            border-color: rgba(255,255,255,0.2);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(30px); }
+            from { opacity: 0; transform: translateY(15px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        #stall-search-root .badge-row {
+        .badge-row {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            margin-bottom: 40px; /* Massive gap between top and bottom info */
+            gap: 12px;
+            margin-bottom: 20px; 
         }
         .name-row {
             display: flex;
             justify-content: space-between;
+            align-items: center;
             gap: 12px;
         }
         .placeholder-badge {
@@ -561,6 +568,7 @@ def render_search_interface(df: pd.DataFrame):
         .animate-spin { animation: spin 1s linear infinite; }
 
         .book-name {
+// ... existing CSS ...
             font-size: 1.35rem;
             font-weight: 700;
             line-height: 1.4;
@@ -756,21 +764,11 @@ def render_search_interface(df: pd.DataFrame):
             
             const qClean = query.trim().toLowerCase();
             
-            // Hidden Admin Portal Trigger (Same Tab)
+            // Hidden Admin Portal Trigger
             if (qClean === 'admin_login') {
                 resultsArea.innerHTML = `
-                    <div class="result-card" onclick="window.location.search = '?login=admin'" style="cursor:pointer; border: 2.5px solid #00c2ff; background: rgba(0, 194, 255, 0.08);">
-                        <div class="badge-row">
-                            <div class="placeholder-badge"></div>
-                            <div class="placeholder-badge"></div>
-                            <div class="tag-badge" style="background:rgba(0,194,255,0.2); color:#00c2ff; border-color:#00c2ff;">SECURE ACCESS</div>
-                        </div>
-                        <div class="name-row">
-                            <div class="book-name" style="font-size: 1.3rem; color: #00c2ff;">Ready to Login? Click here.</div>
-                        </div>
-                        <p style="margin-top:20px; font-size:0.9rem; opacity:0.6; text-align:center;">
-                            This will refresh the page in this tab to show the login box.
-                        </p>
+                    <div class="result-card" style="text-align: center; cursor: pointer;" onclick="window.open('./?login=admin', '_blank')">
+                        <div class="book-name" style="font-size: 1.3rem;">Go to Admin Portal 🔐</div>
                     </div>
                 `;
                 return;
@@ -840,23 +838,20 @@ def render_search_interface(df: pd.DataFrame):
             }
         });
 
+        // Enter key support
+        input.onkeypress = (e) => {
+            if (e.key === 'Enter') {
+                performSearch(input.value, 'all');
+            }
+        };
     </script>
-    '''
+    '''.replace("{{search_json}}", search_json)
 
-    # Inject the HTML and JS into the TOP-LEVEL window.
-    # We use a Base64 hack to prevent Streamlit from stripping the JS code.
-    js_logic = html_code.replace("{{search_json}}", search_json)
-    js_logic = js_logic.split("<script>")[1].split("</script>")[0]
-    b64_js = base64.b64encode(js_logic.encode('utf-8')).decode('utf-8')
-    
-    html_no_js = html_code.split("<script>")[0]
-    
-    st.markdown(f"""
-        <div id="stall-search-wrapper">
-            {html_no_js}
-            <img src="x" onerror="if(!window['stall_init']){{ eval(atob('{b64_js}')); window['stall_init']=true; }}">
-        </div>
-    """, unsafe_allow_html=True)
+    st.markdown("### 🔎 Search Books")
+    # Using components.html with a fixed height to provide a reliable container
+    # st.markdown was stripping JS, causing the 'noting is happening' issue.
+    # To fix the sandbox error, we use window.open(..., '_blank') for the admin portal.
+    components.html(html_code, height=850, scrolling=False)
 
 # ---------------------------
 # Load sheet (if configured)
