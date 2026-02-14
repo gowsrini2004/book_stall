@@ -308,32 +308,26 @@ else:
     if "num_results" not in st.session_state:
         st.session_state.num_results = 50
 
-    # Big search box (Suggestions dropdown)
+    # Big search box
     st.markdown('<div class="big-search">', unsafe_allow_html=True)
     
-    # Pre-generate suggestion strings
-    # We store the mapping in a dict to retrieve the row index later
-    suggestion_to_id = {
-        f"#{row['BK_Number']} - {row['BK_name']} | 📍 {row['BK_row']}": idx 
-        for idx, row in df.iterrows()
-    }
-    suggestion_list = list(suggestion_to_id.keys())
+    # Use session state for the query to allow buttons to update it
+    if "search_query" not in st.session_state:
+        st.session_state.search_query = ""
 
-    selected_suggestion = st.selectbox(
-        "Search Suggestions",
-        options=suggestion_list,
-        index=None,
+    query = st.text_input(
+        "Search",
+        value=st.session_state.search_query,
         placeholder="Start Typing to Search",
         label_visibility="collapsed",
+        key="main_search_input"
     )
+    # Sync back to session state
+    st.session_state.search_query = query
     st.markdown("</div>", unsafe_allow_html=True)
 
     # Convert selection to query for filtering
-    query = ""
-    if selected_suggestion:
-        # If selected, we want to show exactly that one book
-        target_idx = suggestion_to_id[selected_suggestion]
-        query = str(df.loc[target_idx, "BK_Number"])
+    # (Previously selectbox logic, now handled by chips below)
 
     # Reset pagination if query changes
     if "last_query" not in st.session_state:
@@ -343,25 +337,34 @@ else:
         st.session_state.last_query = query
 
     # --- Filtering ---
-    def smart_filter(data: pd.DataFrame, q: str, is_exact: bool = False) -> pd.DataFrame:
+    def smart_filter(data: pd.DataFrame, q: str) -> pd.DataFrame:
         if not q or not q.strip():
-            return data.copy()
+            return data.iloc[0:0]  # Return empty if nothing typed
 
         qn = q.lower().strip()
-        if is_exact:
-            return data[data["BK_Number"].astype(str).str.lower() == qn]
-        
         # Auto: match across combined blob (number+name+rack)
         return data[data["_search"].str.contains(qn, na=False)]
 
-    # If the user chose from the dropdown, we use exact matching
-    all_results = smart_filter(df, query, is_exact=True if selected_suggestion else False)
+    all_results = smart_filter(df, query)
     total_found = len(all_results)
     
+    # --- Quick Suggestions (Top 7) ---
+    if query.strip() and total_found > 1:
+        st.caption("Quick Select:")
+        top_7 = all_results.head(7)
+        cols = st.columns(min(7, total_found))
+        for i, (_, r) in enumerate(top_7.iterrows()):
+            with cols[i % 7]:
+                label = f"#{r['BK_Number']}"
+                if st.button(label, key=f"chip_{i}", use_container_width=True):
+                    st.session_state.search_query = str(r['BK_Number'])
+                    st.rerun()
+
     # Slice for pagination
     results = all_results.head(st.session_state.num_results)
 
-    st.markdown(f"**Results:** {len(results)} of {total_found}")
+    if query.strip():
+        st.markdown(f"**Results:** {len(results)} of {total_found}")
 
     # --- Mobile cards with bright rack ---
     if total_found == 0:
