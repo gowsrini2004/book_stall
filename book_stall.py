@@ -611,7 +611,7 @@ def render_search_interface(df: pd.DataFrame):
 
         <div id="results-area">
             <div class="info-card">
-                <h4>💡 Welcome to RACK Search!</h4>
+                <h4>💡 Welcome to BSRS!</h4>
                 <p>Simply start typing in the box above to find books by <b>BK Number</b>, <b>Book Name</b>, <b>Rack Location</b>, or even <b>Book Price</b>.</p>
             </div>
         </div>
@@ -758,7 +758,7 @@ def render_search_interface(df: pd.DataFrame):
                 currentResults = [];
                 resultsArea.innerHTML = `
                     <div class="info-card">
-                        <h4>💡 Welcome to RACK Search!</h4>
+                        <h4>💡 Welcome to BSRS!</h4>
                         <p>Simply start typing in the box above to find books by <b>BK Number</b>, <b>Book Name</b>, <b>Rack Location</b>, or even <b>Book Price</b>.</p>
                     </div>
                 `;
