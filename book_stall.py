@@ -35,21 +35,27 @@ def extract_sheet_id(url: str | None):
  
 def fix_drive_url(url: str) -> str:
     """Converts a Google Drive sharing link to a direct image download link."""
-    if "drive.google.com" not in url:
+    if not isinstance(url, str) or "drive.google.com" not in url:
         return url
     
     # Extract file ID
     file_id = ""
-    # Format 1: /file/d/ID/view
+    # Standard format: /file/d/ID/view
     if "/file/d/" in url:
         file_id = url.split("/file/d/")[1].split("/")[0]
-    # Format 2: id=ID
+    # Query param format: id=ID
     elif "id=" in url:
+        # Avoid picking up other params like 'id=123&usp=sharing'
+        parts = url.split("id=")[1].split("&")
+        file_id = parts[0]
+    # Simple 'open' format: open?id=ID
+    elif "open?" in url and "id=" in url:
         file_id = url.split("id=")[1].split("&")[0]
     
     if file_id:
-        # Using uc?id=ID is the most reliable direct link format
-        return f"https://drive.google.com/uc?id={file_id}"
+        # The 'thumbnail' endpoint is often more reliable for displaying public Drive images
+        # sz=w1000 provides a high-res thumbnail suitable for a modal
+        return f"https://drive.google.com/thumbnail?id={file_id}&sz=w1000"
     return url
 
 
@@ -454,9 +460,9 @@ def render_search_interface(df: pd.DataFrame):
             border-radius: 16px;
             overflow: hidden;
             margin-top: 20px;
-            background: #000;
-            border: 1px solid rgba(255,255,255,0.1);
-            min-height: 100px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255,255,255,0.08);
+            min-height: 200px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -552,14 +558,15 @@ def render_search_interface(df: pd.DataFrame):
         let displayLimit = 50;
 
         function fixDriveUrl(url) {
-            if (!url.includes('drive.google.com')) return url;
+            if (!url || !url.includes('drive.google.com')) return url;
             let fileId = '';
             if (url.includes('/file/d/')) {
                 fileId = url.split('/file/d/')[1].split('/')[0];
             } else if (url.includes('id=')) {
                 fileId = url.split('id=')[1].split('&')[0];
             }
-            return fileId ? `https://drive.google.com/uc?id=${fileId}` : url;
+            // Use same thumbnail logic in JS for immediate fallback
+            return fileId ? `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000` : url;
         }
 
         function showDetails(index) {
