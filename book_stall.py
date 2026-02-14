@@ -336,12 +336,13 @@ def render_search_interface(df: pd.DataFrame):
 
         #results-area {
             margin-top: 10px;
+            padding-bottom: 200px; /* Extra space at the bottom to prevent clipping */
         }
         .result-card {
             border: 1px solid rgba(255,255,255,0.12);
             border-radius: 16px;
             padding: 18px;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             background: rgba(255,255,255,0.03);
             animation: fadeIn 0.3s ease-out;
         }
@@ -597,11 +598,14 @@ def render_search_interface(df: pd.DataFrame):
             // Auto-scroll to top of search component so modal is visible
             window.scrollTo({ top: 0, behavior: 'smooth' });
             
+            const rateHtml = (r.BK_rate && r.BK_rate.trim() !== "") ? 
+                `<div class="m-item"><div class="m-label">Price</div><div class="m-val">₹ ${r.BK_rate}</div></div>` : "";
+            
             modalBody.innerHTML = `
                 <div class="modal-title">${r.BK_name}</div>
-                <div class="modal-grid">
+                <div class="modal-grid" style="grid-template-columns: repeat(${rateHtml ? 3 : 2}, 1fr);">
                     <div class="m-item"><div class="m-label">Book Code</div><div class="m-val">#${r.BK_Number}</div></div>
-                    <div class="m-item"><div class="m-label">Price</div><div class="m-val">₹ ${r.BK_rate}</div></div>
+                    ${rateHtml}
                     <div class="m-item"><div class="m-label">Rack Location</div><div class="m-val">📍 ${r.BK_row}</div></div>
                 </div>
                 <div class="modal-img-container">
@@ -633,13 +637,15 @@ def render_search_interface(df: pd.DataFrame):
             toShow.forEach((r, idx) => {
                 const hasImage = r.BK_image && r.BK_image.trim().length > 5;
                 const imgBtnHtml = hasImage ? `<div class="img-btn" onclick="showDetails(${idx})">📷</div>` : '';
+                const hasRate = r.BK_rate && r.BK_rate.trim() !== "";
+                const rateBadgeHtml = hasRate ? `<div class="rate-badge">₹ ${r.BK_rate}</div>` : '';
 
                 html += `
                 <div class="result-card">
                     <div class="rowline">
                         <div class="badge-group">
                             <div class="tag-badge">#${r.BK_Number}</div>
-                            <div class="rate-badge">₹ ${r.BK_rate}</div>
+                            ${rateBadgeHtml}
                             ${imgBtnHtml}
                         </div>
                         <div class="rack-badge">
@@ -733,8 +739,9 @@ def render_search_interface(df: pd.DataFrame):
     '''.replace("{{search_json}}", search_json)
 
     st.markdown("### 🔎 Search Books")
-    # Set height large enough for results, but disable internal scrollbar for "integrated" feel
-    components.html(html_code, height=1800, scrolling=False)
+    # Increase height drastically or use dynamic auto-resizing if possible
+    # For now, 2500px is safer for 50 results
+    components.html(html_code, height=2500, scrolling=False)
 
 # ---------------------------
 # Load sheet (if configured)
