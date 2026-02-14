@@ -261,9 +261,12 @@ def render_search_interface(df: pd.DataFrame):
             padding: 0;
         }
         #search-container {
-            position: relative;
-            width: 100%;
-            margin-bottom: 20px;
+            position: sticky;
+            top: 0;
+            background: #0e1117; /* Same as streamlit dark theme */
+            padding: 10px 0;
+            z-index: 1000;
+            margin-bottom: 10px;
         }
         #search-input {
             width: 100%;
@@ -356,15 +359,22 @@ def render_search_interface(df: pd.DataFrame):
         #clear-btn:hover { background: rgba(255, 255, 255, 0.2); color: white; }
 
         #results-area {
-            margin-top: 10px;
-            padding-bottom: 400px; /* Force extra space at the bottom */
+            margin-top: 5px;
+            height: 650px; /* Fixed height for internal scrolling */
+            overflow-y: auto;
+            padding-right: 8px;
+            padding-bottom: 50px;
         }
+        /* Sleek scrollbar for results */
+        #results-area::-webkit-scrollbar { width: 5px; }
+        #results-area::-webkit-scrollbar-thumb { background: rgba(0, 194, 255, 0.3); border-radius: 10px; }
+        #results-area::-webkit-scrollbar-track { background: transparent; }
         .result-card {
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 16px;
-            padding: 18px;
-            margin-bottom: 20px;
-            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 12px;
+            background: rgba(255,255,255,0.02);
             animation: fadeIn 0.3s ease-out;
         }
         @keyframes fadeIn {
@@ -772,8 +782,8 @@ def render_search_interface(df: pd.DataFrame):
     '''.replace("{{search_json}}", search_json)
 
     st.markdown("### 🔎 Search Books")
-    # Using a massive height to ensure 50 results + padding never get cut off
-    components.html(html_code, height=4500, scrolling=False)
+    # 850px is a perfect height for most mobile/desktop views without clipping
+    components.html(html_code, height=850, scrolling=False)
 
 # ---------------------------
 # Load sheet (if configured)
