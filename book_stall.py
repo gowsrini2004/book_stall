@@ -114,20 +114,30 @@ def apply_mapping(df: pd.DataFrame, mapping: dict) -> pd.DataFrame:
     return df2
 
 
-# ---------------------------
-# Session state
-# ---------------------------
 if "is_admin" not in st.session_state:
     st.session_state.is_admin = False
 if "show_admin_login" not in st.session_state:
     st.session_state.show_admin_login = False
 
-# Catch the login trigger from the hidden search button
-q_login = st.query_params.get("login", "")
-if q_login == "admin" or (isinstance(q_login, list) and "admin" in q_login):
-    st.session_state.show_admin_login = True
-    st.query_params.clear() 
-    st.rerun()
+# --- BULLETPROOF ADMIN TRIGGER ---
+# Detect 'login=admin' in URL using every possible Streamlit method
+try:
+    # Method 1: Modern st.query_params (dict-like)
+    qp = st.query_params.to_dict()
+    if qp.get("login") == "admin":
+        st.session_state.show_admin_login = True
+        st.query_params.clear()
+        st.rerun()
+except Exception:
+    try:
+        # Method 2: Older st.experimental_get_query_params (returns lists)
+        eqp = st.experimental_get_query_params()
+        if "admin" in eqp.get("login", []):
+            st.session_state.show_admin_login = True
+            st.experimental_set_query_params() # Clear params
+            st.rerun()
+    except Exception:
+        pass
 
 cfg = load_config()
 cfg.setdefault("sheet_url", "")
@@ -755,22 +765,25 @@ def render_search_interface(df: pd.DataFrame):
             if (qClean === 'admin_login') {
                 resultsArea.innerHTML = `
                     <div style="padding: 25px 0; text-align: center;">
-                        <a href="./?login=admin" target="_top" style="
-                            text-decoration: none;
-                            display: block;
-                            padding: 20px;
-                            background: #00c2ff;
-                            color: white;
-                            font-weight: 800;
-                            border-radius: 16px;
-                            box-shadow: 0 8px 25px rgba(0, 194, 255, 0.4);
-                            font-size: 1.2rem;
-                            border: none;
-                            cursor: pointer;
-                        ">
-                            � CLICK TO OPEN ADMIN LOGIN
-                        </a>
-                        <p style="margin-top:15px; opacity:0.6; font-size:0.9rem;">(Clicking this will reload the page to show the login box)</p>
+                        <form action="./" target="_top" method="GET">
+                            <input type="hidden" name="login" value="admin">
+                            <button type="submit" style="
+                                border: none;
+                                display: block;
+                                width: 100%;
+                                padding: 22px;
+                                background: #00c2ff;
+                                color: white;
+                                font-weight: 800;
+                                border-radius: 16px;
+                                box-shadow: 0 8px 25px rgba(0, 194, 255, 0.4);
+                                font-size: 1.2rem;
+                                cursor: pointer;
+                            ">
+                                🔐 CLICK TO OPEN ADMIN LOGIN
+                            </button>
+                        </form>
+                        <p style="margin-top:15px; opacity:0.6; font-size:0.9rem;">(Use this button to securely access the admin panel)</p>
                     </div>
                 `;
                 return;
