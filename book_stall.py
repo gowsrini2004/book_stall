@@ -8,6 +8,8 @@ st.set_page_config(page_title="BK Search Pro", layout="centered")  # better for 
 
 CONFIG_PATH = Path("config.json")
 ADMIN_PASSWORD = "mother"
+SHEET_ID = "1KWB2qujX8G4FcbGX_S9H7-jGflFED7-KzPvpCz6Ru-E"
+SHEET_NAME = "Sheet1"
 
 APP_FIELDS = ["BK_Number", "BK_name", "BK_row"]  # standard names inside the app
 
@@ -156,22 +158,21 @@ if st.session_state.show_admin_login and not st.session_state.is_admin:
                     st.session_state.is_admin = True
                     st.session_state.show_admin_login = False
                     st.success("✅ Admin access granted")
+                    st.rerun()
                 else:
                     st.error("❌ Wrong password")
         with c2:
             if st.button("Cancel"):
                 st.session_state.show_admin_login = False
+                st.rerun()
 
 
 # ---------------------------
 # Load sheet (if configured)
 # ---------------------------
-sheet_id = extract_sheet_id(cfg.get("sheet_url", ""))
-df_raw, load_error = None, None
-
-if sheet_id and cfg.get("sheet_name"):
+if SHEET_ID and SHEET_NAME:
     try:
-        df_raw = fetch_sheet_df(sheet_id, cfg["sheet_name"])
+        df_raw = fetch_sheet_df(SHEET_ID, SHEET_NAME)
     except Exception as e:
         load_error = str(e)
 
@@ -205,27 +206,14 @@ if st.session_state.is_admin:
                 st.warning(f"Mapping not ready: {e}")
 
     with tabs[1]:
-        st.subheader("Setup Google Sheet + Dynamic Column Mapping")
+        st.subheader("Dynamic Column Mapping")
+        st.caption(f"Connected to Sheet: {SHEET_NAME}")
 
-        new_url = st.text_input("Google Sheet Link", value=cfg.get("sheet_url", ""))
-        new_sheet_name = st.text_input("Sheet Tab Name", value=cfg.get("sheet_name", "Sheet1"))
-        st.caption("Make sure sharing: Anyone with link → Viewer")
-
-        preview_df, preview_error = None, None
-        preview_id = extract_sheet_id(new_url)
-        if preview_id and new_sheet_name:
-            try:
-                preview_df = fetch_sheet_df(preview_id, new_sheet_name)
-            except Exception as e:
-                preview_error = str(e)
-
-        if not preview_id:
-            st.info("Paste a valid Google Sheet link to continue.")
-        elif preview_error:
-            st.error(f"Could not load sheet: {preview_error}")
+        if load_error:
+            st.error(f"Could not load sheet: {load_error}")
         else:
             st.success("✅ Sheet columns detected")
-            sheet_cols = preview_df.columns.tolist()
+            sheet_cols = df_raw.columns.tolist()
 
             st.markdown("### Map Columns")
             st.caption("Pick which sheet columns match the app fields.")
@@ -263,13 +251,11 @@ if st.session_state.is_admin:
                 st.info(f"Preview not ready: {e}")
 
             if st.button("💾 Save Configuration", type="primary"):
-                cfg["sheet_url"] = new_url
-                cfg["sheet_name"] = new_sheet_name
                 cfg["mapping"] = new_mapping
                 save_config(cfg)
                 st.cache_data.clear()
                 st.success("✅ Saved locally!")
-                st.info("💡 **Tip:** To keep these settings permanently (even after rehosting), make sure to **commit and push** your changes to GitHub.")
+                st.rerun()
 
 # ---------------------------
 # USER SEARCH (mobile-first)
