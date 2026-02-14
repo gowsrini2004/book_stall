@@ -48,7 +48,8 @@ def fix_drive_url(url: str) -> str:
         file_id = url.split("id=")[1].split("&")[0]
     
     if file_id:
-        return f"https://drive.google.com/uc?export=view&id={file_id}"
+        # Using uc?id=ID is the most reliable direct link format
+        return f"https://drive.google.com/uc?id={file_id}"
     return url
 
 
@@ -452,14 +453,18 @@ def render_search_interface(df: pd.DataFrame):
             width: 100%;
             border-radius: 16px;
             overflow: hidden;
-            margin-bottom: 24px;
+            margin-top: 20px;
             background: #000;
             border: 1px solid rgba(255,255,255,0.1);
+            min-height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .modal-img {
             width: 100%;
             height: auto;
-            max-height: 450px;
+            max-height: 500px;
             display: block;
             object-fit: contain;
         }
@@ -554,7 +559,7 @@ def render_search_interface(df: pd.DataFrame):
             } else if (url.includes('id=')) {
                 fileId = url.split('id=')[1].split('&')[0];
             }
-            return fileId ? `https://drive.google.com/uc?export=view&id=${fileId}` : url;
+            return fileId ? `https://drive.google.com/uc?id=${fileId}` : url;
         }
 
         function showDetails(index) {
@@ -564,14 +569,16 @@ def render_search_interface(df: pd.DataFrame):
             const finalImg = fixDriveUrl(r.BK_image || '');
             
             modalBody.innerHTML = `
-                <div class="modal-img-container">
-                    <img class="modal-img" src="${finalImg}" onerror="this.src='https://via.placeholder.com/400x600?text=No+Preview+Available'">
-                </div>
                 <div class="modal-title">${r.BK_name}</div>
                 <div class="modal-grid">
                     <div class="m-item"><div class="m-label">Book Code</div><div class="m-val">#${r.BK_Number}</div></div>
                     <div class="m-item"><div class="m-label">Price</div><div class="m-val">₹ ${r.BK_rate}</div></div>
                     <div class="m-item"><div class="m-label">Rack Location</div><div class="m-val">📍 ${r.BK_row}</div></div>
+                </div>
+                <div class="modal-img-container">
+                    <img class="modal-img" src="${finalImg}" 
+                         onload="this.style.opacity=1" 
+                         onerror="this.src='https://via.placeholder.com/400x600?text=Image+Load+Failed'; this.title='Check if Drive link is shared as Public;'">
                 </div>
             `;
             modalOverlay.style.display = 'flex';
