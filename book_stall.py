@@ -57,10 +57,11 @@ def apply_mapping(df: pd.DataFrame, mapping: dict) -> pd.DataFrame:
     for c in APP_FIELDS:
         df2[c] = df2[c].astype(str).fillna("").str.strip()
 
-    # Create a single search blob (number + name + row)
+    # Create a single search blob (number + name + rate + row)
     df2["_search"] = (
         df2["BK_Number"].astype(str) + " " +
         df2["BK_name"].astype(str) + " " +
+        df2["BK_rate"].astype(str) + " " +
         df2["BK_row"].astype(str)
     ).str.lower()
 
@@ -109,11 +110,12 @@ st.markdown(
         display:inline-block;
         padding: 10px 14px;
         border-radius: 14px;
-        font-weight: 800;
+        font-weight: 900;
         font-size: 1.1rem;
-        background: #00ffc222;
-        border: 1px solid #00ffc255;
-        color: #00ffc2;
+        background: #39FF1415;
+        border: 2px solid #39FF14;
+        color: #FFFFFF;
+        text-shadow: 0 0 5px #39FF14;
       }
       .tag-badge {
         display:inline-block;
@@ -353,8 +355,8 @@ else:
                 f"""
                 <div class="result-card">
                   <div class="rowline">
-                    <div class="tag-badge">#{r['BK_Number']}<span style="font-size: 0.75rem; opacity: 0.8; font-weight: 400; margin-left: 2px;"></span></div>
-                    <div style="display:flex; gap:8px;">
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <div class="tag-badge">#{r['BK_Number']}</div>
                         <div class="rate-badge">₹ {r['BK_rate']}</div>
                         <div class="rack-badge">📍 {r['BK_row']}</div>
                     </div>
