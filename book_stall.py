@@ -128,6 +128,21 @@ st.markdown(
       .muted { opacity: 0.8; font-size: 0.95rem; }
       .tiny { opacity: 0.75; font-size: 0.85rem; }
       .rowline { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+      .suggestion-item {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        padding: 8px 12px;
+        margin-bottom: 4px;
+        border-radius: 8px;
+        cursor: pointer;
+        text-align: left;
+        width: 100%;
+        display: block;
+        transition: background 0.2s;
+      }
+      .suggestion-item:hover {
+        background: rgba(255,255,255,0.1);
+      }
       .btn-row { display:flex; justify-content:flex-end; }
     </style>
     """,
@@ -348,17 +363,17 @@ else:
     all_results = smart_filter(df, query)
     total_found = len(all_results)
     
-    # --- Quick Suggestions (Top 7) ---
+    # --- Quick Suggestions (Vertical "Dropdown" beneath search) ---
     if query.strip() and total_found > 1:
-        st.caption("Quick Select:")
+        st.caption("Suggestions:")
         top_7 = all_results.head(7)
-        cols = st.columns(min(7, total_found))
         for i, (_, r) in enumerate(top_7.iterrows()):
-            with cols[i % 7]:
-                label = f"#{r['BK_Number']}"
-                if st.button(label, key=f"chip_{i}", use_container_width=True):
-                    st.session_state.search_query = str(r['BK_Number'])
-                    st.rerun()
+            # Using a button that looks like a list item
+            label = f"#{r['BK_Number']} - {r['BK_name']} | 📍 {r['BK_row']}"
+            if st.button(label, key=f"sugg_{i}", use_container_width=True):
+                st.session_state.search_query = str(r['BK_Number'])
+                st.rerun()
+        st.divider()
 
     # Slice for pagination
     results = all_results.head(st.session_state.num_results)
@@ -367,12 +382,9 @@ else:
         st.markdown(f"**Results:** {len(results)} of {total_found}")
 
     # --- Mobile cards with bright rack ---
-    if total_found == 0:
-        if query.strip():
-            st.warning("No matches found.")
-        else:
-            st.info("No data available in the sheet.")
-    else:
+    if query.strip() and total_found == 0:
+        st.warning("No matches found.")
+    elif query.strip():
         for _, r in results.iterrows():
             st.markdown(
                 f"""
@@ -395,9 +407,7 @@ else:
             if st.button("🔽 Show More", use_container_width=True):
                 st.session_state.num_results += 50
                 st.rerun()
-
-        if total_found == 0 and query.strip():
-            st.warning("No matches found.")
-        elif total_found == 1:
+        
+        if total_found == 1:
             one = results.iloc[0]
             st.success(f"✅ Location: **{one['BK_row']}**  |  Rate: **₹ {one['BK_rate']}**")
