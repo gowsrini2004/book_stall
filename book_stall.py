@@ -110,12 +110,11 @@ st.markdown(
         display:inline-block;
         padding: 10px 14px;
         border-radius: 14px;
-        font-weight: 900;
+        font-weight: 800;
         font-size: 1.1rem;
-        background: #39FF1415;
-        border: 2px solid #39FF14;
-        color: #FFFFFF;
-        text-shadow: 0 0 5px #39FF14;
+        background: #00ffc211;
+        border: 1px solid #00ffc244;
+        color: #00ffc2;
       }
       .tag-badge {
         display:inline-block;
@@ -329,7 +328,7 @@ else:
     # --- Filtering ---
     def smart_filter(data: pd.DataFrame, q: str) -> pd.DataFrame:
         if not q or not q.strip():
-            return data.copy()
+            return data.iloc[0:0]
 
         qn = " ".join(q.lower().strip().split())
         # Auto: match across combined blob (number+name+rack)
@@ -348,7 +347,7 @@ else:
         if query.strip():
             st.warning("No matches found.")
         else:
-            st.info("No data available in the sheet.")
+            st.info("💡 **Welcome to RACK Search!**  \nSimply start typing in the box above to find books by **Tag Number**, **Name**, **Rack Location**, or even **Price**.")
     else:
         for _, r in results.iterrows():
             st.markdown(
