@@ -413,8 +413,8 @@ def render_search_interface(df: pd.DataFrame):
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.9);
-            backdrop-filter: blur(10px);
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px);
             display: none;
             justify-content: center;
             align-items: center;
@@ -423,13 +423,13 @@ def render_search_interface(df: pd.DataFrame):
         }
         #modal-content {
             background: #1a1a1a;
-            border: 1px solid rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 24px;
-            max-width: 480px;
+            max-width: 500px;
             width: 100%;
             position: relative;
-            padding: 28px;
-            box-shadow: 0 25px 60px rgba(0,0,0,0.8);
+            padding: 24px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.5);
             animation: modalIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         @keyframes modalIn {
@@ -438,34 +438,36 @@ def render_search_interface(df: pd.DataFrame):
         }
         #modal-close {
             position: absolute;
-            top: 18px;
-            right: 18px;
+            top: 15px;
+            right: 15px;
             background: rgba(255, 255, 255, 0.1);
             border: none;
             border-radius: 50%;
-            width: 36px;
-            height: 36px;
+            width: 32px;
+            height: 32px;
             color: white;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.2rem;
+            font-size: 1rem;
             transition: all 0.2s;
+            z-index: 10;
         }
-        #modal-close:hover { background: rgba(255, 0, 0, 0.3); color: white; }
+        #modal-close:hover { background: #ff4b4b; }
         
         .modal-img-container {
             width: 100%;
             border-radius: 16px;
             overflow: hidden;
             margin-top: 20px;
-            background: rgba(255, 255, 255, 0.02);
+            background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(255,255,255,0.08);
-            min-height: 200px;
+            min-height: 250px;
             display: flex;
             align-items: center;
             justify-content: center;
+            position: relative;
         }
         .modal-img {
             width: 100%;
@@ -473,14 +475,29 @@ def render_search_interface(df: pd.DataFrame):
             max-height: 500px;
             display: block;
             object-fit: contain;
+            opacity: 0;
+            transition: opacity 0.3s;
         }
-        .modal-title { font-size: 1.6rem; font-weight: 800; color: #00c2ff; margin-bottom: 15px; line-height: 1.2; }
-        .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .m-item { background: rgba(255,255,255,0.03); padding: 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.05); }
-        .m-label { font-size: 0.75rem; color: #888; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
-        .m-val { font-size: 1.1rem; font-weight: 700; color: #fff; }
+        .modal-title { font-size: 1.5rem; font-weight: 800; color: #00c2ff; margin-bottom: 20px; padding-right: 40px; }
+        .modal-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .m-item { background: rgba(255,255,255,0.04); padding: 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); text-align: center; }
+        .m-label { font-size: 0.65rem; color: #aaa; text-transform: uppercase; font-weight: 800; margin-bottom: 4px; }
+        .m-val { font-size: 0.95rem; font-weight: 700; color: #fff; }
+
+        .loading-text {
+            position: absolute;
+            color: #00c2ff;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .animate-spin { animation: spin 1s linear infinite; }
 
         .book-name {
+// ... existing CSS ...
             font-size: 1.35rem;
             font-weight: 700;
             line-height: 1.4;
@@ -583,9 +600,13 @@ def render_search_interface(df: pd.DataFrame):
                     <div class="m-item"><div class="m-label">Rack Location</div><div class="m-val">📍 ${r.BK_row}</div></div>
                 </div>
                 <div class="modal-img-container">
+                    <div id="img-loader" class="loading-text">
+                        <svg class="animate-spin" style="width:20px; height:20px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10" opacity="0.25"></circle><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path></svg>
+                        Loading Image...
+                    </div>
                     <img class="modal-img" src="${finalImg}" 
-                         onload="this.style.opacity=1" 
-                         onerror="this.src='https://via.placeholder.com/400x600?text=Image+Load+Failed'; this.title='Check if Drive link is shared as Public;'">
+                         onload="this.style.opacity=1; document.getElementById('img-loader').style.display='none';" 
+                         onerror="this.style.display='none'; document.getElementById('img-loader').innerHTML='❌ Load Failed';">
                 </div>
             `;
             modalOverlay.style.display = 'flex';
