@@ -53,7 +53,6 @@ def fetch_sheet_df(sheet_id: str, sheet_name: str) -> pd.DataFrame:
 
 def apply_mapping(df: pd.DataFrame, mapping: dict) -> pd.DataFrame:
     # mapping: { "BK_Number": "BK_No", "BK_name": "BK_Name", "BK_row": "BK_Rack" }
-    mapping = mapping or {}
     missing = [k for k in APP_FIELDS if k not in mapping or not mapping[k]]
     if missing:
         raise ValueError(f"Mapping not set for: {missing}")
@@ -313,16 +312,11 @@ else:
         st.warning(f"App is not configured properly (mapping issue): {e}")
         st.stop()
     
-    # --- Integration: HTML Search Component ---
+    # --- Integration: Consolidated HTML Search & Results Component ---
     import streamlit.components.v1 as components
 
-    # Sync with URL query params
-    q_params = st.query_params
-    url_q = q_params.get("q", "")
-    url_mode = q_params.get("m", "")  # 'all' or 'single'
-
-    # Prepare data for JS search
-    search_json = df[["BK_Number", "BK_name", "_search"]].to_json(orient="records")
+    # Prepare data for JS search (ensure columns exist and are clean)
+    search_json = df[APP_FIELDS + ["_search"]].to_json(orient="records")
 
     html_code = f"""
     <style>
@@ -332,230 +326,271 @@ else:
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             margin: 0;
             padding: 0;
-            overflow: visible;
         }}
         #search-container {{
             position: relative;
             width: 100%;
-            height: 100%;
-            z-index: 9999;
-        }}
-        .search-wrapper {{
-            position: relative;
-            z-index: 10001;
+            margin-bottom: 20px;
         }}
         #search-input {{
             width: 100%;
-            padding: 14px 18px;
+            padding: 14px 16px;
             font-size: 1.15rem;
-            background: rgba(40, 44, 52, 0.9);
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
             color: white;
             outline: none;
             box-sizing: border-box;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            transition: all 0.2s;
         }}
         #search-input:focus {{
             border-color: #00c2ff;
-            background: rgba(40, 44, 52, 0.98);
-            box-shadow: 0 0 15px rgba(0, 194, 255, 0.3);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 12px rgba(0, 194, 255, 0.2);
         }}
         #dropdown {{
             position: absolute;
-            top: 62px;
+            top: 60px;
             left: 0;
             right: 0;
-            background: rgba(30, 34, 42, 0.95);
-            backdrop-filter: blur(12px);
+            background: #1e1e1e;
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 14px;
-            box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
             display: none;
-            max-height: 280px;
+            max-height: 350px;
             overflow-y: auto;
-            z-index: 10002;
-            padding: 6px 0;
+            z-index: 2000;
         }}
-        /* Tooltip-like arrow */
-        #dropdown::before {{
-            content: '';
-            position: absolute;
-            top: -6px;
-            left: 24px;
-            width: 12px;
-            height: 12px;
-            background: rgba(30, 34, 42, 0.95);
-            border-left: 1px solid rgba(255, 255, 255, 0.1);
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            transform: rotate(45deg);
-        }}
-        .item {{
-            padding: 12px 18px;
+        .dropdown-item {{
+            padding: 14px 16px;
             cursor: pointer;
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            font-size: 1rem;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            font-size: 1.05rem;
+            transition: background 0.2s;
         }}
-        .item:last-child {{ border-bottom: none; }}
-        .item:hover {{
-            background: rgba(255, 255, 255, 0.1);
-            padding-left: 22px;
+        .dropdown-item:last-child {{ border-bottom: none; }}
+        .dropdown-item:hover {{
+            background: rgba(255, 255, 255, 0.08);
         }}
-        .item.all {{
+        .dropdown-item.all-btn {{
             color: #00c2ff;
             font-weight: 700;
-            background: rgba(0, 194, 255, 0.08);
-            border-bottom: 2px solid rgba(0, 194, 255, 0.2);
+            background: rgba(0, 194, 255, 0.05);
         }}
-        .info-box {{
-            margin-top: 20px;
-            padding: 18px;
-            background: rgba(0, 194, 255, 0.04);
-            border: 1px solid rgba(0, 194, 255, 0.12);
+
+        #results-area {{
+            margin-top: 10px;
+        }}
+        .result-card {{
+            border: 1px solid rgba(255,255,255,0.12);
             border-radius: 16px;
-            font-size: 0.95rem;
-            color: rgba(255, 255, 255, 0.85);
-            line-height: 1.6;
-            animation: fadeIn 0.5s ease-out;
+            padding: 18px;
+            margin-bottom: 15px;
+            background: rgba(255,255,255,0.03);
+            animation: fadeIn 0.3s ease-out;
         }}
         @keyframes fadeIn {{
-            from {{ opacity: 0; transform: translateY(5px); }}
+            from {{ opacity: 0; transform: translateY(10px); }}
             to {{ opacity: 1; transform: translateY(0); }}
         }}
-        ::-webkit-scrollbar {{ width: 6px; }}
-        ::-webkit-scrollbar-thumb {{ background: rgba(255,255,255,0.1); border-radius: 10px; }}
+        .rowline {{
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }}
+        .badge-group {{ display: flex; gap: 8px; flex-wrap: wrap; }}
+        .tag-badge {{
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-weight: 800;
+            font-size: 1rem;
+            background: rgba(255, 193, 7, 0.15);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            color: #ffc107;
+        }}
+        .rate-badge {{
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 1rem;
+            background: rgba(0, 194, 255, 0.05);
+            border: 1px solid rgba(0, 194, 255, 0.15);
+            color: #00c2ff;
+        }}
+        .rack-badge {{
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-weight: 800;
+            font-size: 1rem;
+            background: rgba(0, 194, 255, 0.15);
+            border: 1px solid rgba(0, 194, 255, 0.3);
+            color: #ffffff;
+        }}
+        .book-name {{
+            font-size: 1.35rem;
+            font-weight: 700;
+            line-height: 1.4;
+            color: #ffffff;
+        }}
+        .info-card {{
+            background: rgba(0, 194, 255, 0.05);
+            border: 1px solid rgba(0, 194, 255, 0.15);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: left;
+            margin-top: 10px;
+        }}
+        .info-card h4 {{ margin-top: 0; color: #00c2ff; font-size: 1.2rem; }}
+        .info-card p {{ margin-bottom: 0; opacity: 0.9; line-height: 1.6; }}
+        
+        .no-matches {{
+            padding: 30px;
+            text-align: center;
+            opacity: 0.7;
+            background: rgba(255,255,255,0.02);
+            border-radius: 16px;
+            border: 1px dashed rgba(255,255,255,0.1);
+        }}
+        
+        .show-more-btn {{
+            width: 100%;
+            padding: 14px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 10px;
+            transition: background 0.2s;
+        }}
+        .show-more-btn:hover {{ background: rgba(255,255,255,0.1); }}
     </style>
 
     <div id="search-container">
-        <div class="search-wrapper">
-            <input type="text" id="search-input" placeholder="Start Typing to Search..." autocomplete="off">
-            <div id="dropdown"></div>
-        </div>
-        <div id="info" class="info-box">
-            💡 <b>Welcome to RACK Search!</b><br>
-            Quickly find books by typing their <b>Tag #</b>, <b>Name</b>, or <b>Price</b>.
+        <input type="text" id="search-input" placeholder="Start Typing to Search..." autocomplete="off">
+        <div id="dropdown"></div>
+    </div>
+
+    <div id="results-area">
+        <div class="info-card">
+            <h4>💡 Welcome to RACK Search!</h4>
+            <p>Simply start typing in the box above to find books by <b>Tag Number</b>, <b>Name</b>, <b>Rack Location</b>, or even <b>Price</b>.</p>
         </div>
     </div>
 
     <script>
-        const data = {search_json};
+        const allData = {search_json};
         const input = document.getElementById('search-input');
         const dropdown = document.getElementById('dropdown');
-        const info = document.getElementById('info');
+        const resultsArea = document.getElementById('results-area');
+        
+        let currentResults = [];
+        let displayLimit = 50;
 
-        // Initial sync
-        const urlParams = new URLSearchParams(window.parent.location.search);
-        if (urlParams.has('q') && urlParams.get('q')) {{
-            input.value = urlParams.get('q');
-            info.style.display = 'none';
+        function renderCards() {{
+            if (currentResults.length === 0) {{
+                resultsArea.innerHTML = '<div class="no-matches">No matches found.</div>';
+                return;
+            }}
+            
+            let html = '';
+            const toShow = currentResults.slice(0, displayLimit);
+            
+            toShow.forEach(r => {{
+                html += `
+                <div class="result-card">
+                    <div class="rowline">
+                        <div class="badge-group">
+                            <div class="tag-badge">#${{r.BK_Number}}</div>
+                            <div class="rate-badge">₹ ${{r.BK_rate}}</div>
+                            <div class="rack-badge">📍 ${{r.BK_row}}</div>
+                        </div>
+                    </div>
+                    <div class="book-name">${{r.BK_name}}</div>
+                </div>
+                `;
+            }});
+            
+            if (currentResults.length > displayLimit) {{
+                html += `<button class="show-more-btn" onclick="increaseLimit()">🔽 Show More Results</button>`;
+            }}
+            
+            resultsArea.innerHTML = html;
+        }}
+
+        window.increaseLimit = () => {{
+            displayLimit += 50;
+            renderCards();
+        }};
+
+        function performSearch(query, mode, exactId = null) {{
+            displayLimit = 50;
+            dropdown.style.display = 'none';
+            
+            if (!query.trim()) {{
+                currentResults = [];
+                resultsArea.innerHTML = `
+                    <div class="info-card">
+                        <h4>💡 Welcome to RACK Search!</h4>
+                        <p>Simply start typing in the box above to find books by <b>Tag Number</b>, <b>Name</b>, <b>Rack Location</b>, or even <b>Price</b>.</p>
+                    </div>
+                `;
+                return;
+            }}
+
+            if (mode === 'single' && exactId) {{
+                currentResults = allData.filter(item => String(item.BK_Number) === String(exactId));
+                input.value = currentResults[0]?.BK_name || query;
+            }} else {{
+                const qn = query.toLowerCase().trim();
+                currentResults = allData.filter(item => item._search.includes(qn));
+            }}
+            
+            renderCards();
         }}
 
         input.oninput = (e) => {{
             const val = e.target.value.trim().toLowerCase();
-            const originalVal = e.target.value.trim();
+            const originalVal = e.target.value;
             
             if (!val) {{
                 dropdown.style.display = 'none';
-                info.style.display = 'block';
+                performSearch('', 'all');
                 return;
             }}
             
-            info.style.display = 'none';
-            const matches = data.filter(item => item._search.includes(val)).slice(0, 7);
+            const matches = allData.filter(item => item._search.includes(val)).slice(0, 7);
             
-            let html = '<div class="item all" data-val="' + originalVal + '" data-mode="all">🔍 Show all matching "' + originalVal + '"</div>';
+            let html = `<div class="dropdown-item all-btn" onclick="performSearch('${{originalVal.replace(/'/g, "\\'")}}', 'all')">🔍 Show all matching "${{originalVal}}"</div>`;
             matches.forEach(m => {{
-                html += '<div class="item" data-val="' + m.BK_Number + '" data-mode="single">📖 ' + m.BK_name + ' (#' + m.BK_Number + ')</div>';
+                html += `<div class="dropdown-item" onclick="performSearch('${{m.BK_name.replace(/'/g, "\\'")}}', 'single', '${{m.BK_Number}}')">� ${{m.BK_name}} (#${{m.BK_Number}})</div>`;
             }});
             
             dropdown.innerHTML = html;
             dropdown.style.display = 'block';
-
-            // Click handling
-            document.querySelectorAll('.item').forEach(el => {{
-                el.onclick = () => {{
-                    selectItem(el.getAttribute('data-val'), el.getAttribute('data-mode'));
-                }};
-            }});
         }};
 
-        function selectItem(val, mode) {{
-            const url = new URL(window.parent.location.href);
-            url.searchParams.set("q", val);
-            url.searchParams.set("m", mode);
-            window.parent.location.href = url.href;
-        }}
-        
-        window.onclick = (e) => {{
-            if (!e.target.matches('#search-input')) {{
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {{
+            if (!e.target.closest('#search-container')) {{
                 dropdown.style.display = 'none';
+            }}
+        }});
+
+        // Enter key support
+        input.onkeypress = (e) => {{
+            if (e.key === 'Enter') {{
+                performSearch(input.value, 'all');
             }}
         }};
     </script>
     """
     
     st.markdown("### 🔎 Search Books")
-    components.html(html_code, height=550)
-
-    # --- Filtering logic ---
-    query = url_q
-    mode = url_mode
-
-    if not query:
-        st.stop()
-
-    def smart_filter_new(data_in: pd.DataFrame, q: str, m: str) -> pd.DataFrame:
-        if not q or not q.strip():
-            return data_in.iloc[0:0]
-        
-        if m == "single":
-            return data_in[data_in["BK_Number"].astype(str) == str(q)]
-        
-        qn = " ".join(q.lower().strip().split())
-        return data_in[data_in["_search"].str.contains(qn, na=False)]
-
-    all_results = smart_filter_new(df, query, mode)
-    total_found = len(all_results)
-    
-    if "num_results" not in st.session_state:
-        st.session_state.num_results = 50
-    
-    results = all_results.head(st.session_state.num_results)
-
-    if query.strip():
-        st.markdown(f"**Results:** {len(results)} of {total_found}")
-
-    # --- Mobile cards ---
-    if total_found == 0:
-        st.warning(f"No matches found for '{query}'.")
-    else:
-        for _, r in results.iterrows():
-            st.markdown(
-                f"""
-                <div class="result-card">
-                  <div class="rowline">
-                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                        <div class="tag-badge">#{r['BK_Number']}</div>
-                        <div class="rate-badge">₹ {r['BK_rate']}</div>
-                        <div class="rack-badge">📍 {r['BK_row']}</div>
-                    </div>
-                  </div>
-                  <div style="margin-top:16px; font-size:1.4rem; font-weight: 700; line-height: 1.3;">{r['BK_name']}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        if total_found > st.session_state.num_results:
-            if st.button("🔽 Show More", use_container_width=True):
-                st.session_state.num_results += 50
-                st.rerun()
-
-        if total_found == 1:
-            one = results.iloc[0]
-            st.success(f"✅ Location: **{one['BK_row']}**  |  Rate: **₹ {one['BK_rate']}**")
+    # Set height large enough for results, but disable internal scrollbar for "integrated" feel
+    components.html(html_code, height=1800, scrolling=False)
