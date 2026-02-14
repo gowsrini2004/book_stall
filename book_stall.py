@@ -26,7 +26,10 @@ def load_config():
 def save_config(cfg: dict):
     CONFIG_PATH.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
 
-def extract_sheet_id(url: str):
+import requests
+import io
+
+def extract_sheet_id(url: str | None):
     match = re.search(r"/d/([a-zA-Z0-9-_]+)", url or "")
     return match.group(1) if match else None
 
@@ -34,12 +37,19 @@ def extract_sheet_id(url: str):
 # ---------------------------
 # Google Sheet loader
 # ---------------------------
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=3600)  # Cache for 1 hour to avoid constant re-fetching
 def fetch_sheet_df(sheet_id: str, sheet_name: str) -> pd.DataFrame:
     url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}"
-    df = pd.read_csv(url)
-    df.columns = [c.strip() for c in df.columns]
-    return df
+    try:
+        # Use requests with a timeout to prevent the app from hanging on a slow connection
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        
+        df = pd.read_csv(io.StringIO(response.text))
+        df.columns = [c.strip() for c in df.columns]
+        return df
+    except Exception as e:
+        raise Exception(f"Failed to fetch data: {str(e)}")
 
 def apply_mapping(df: pd.DataFrame, mapping: dict) -> pd.DataFrame:
     # mapping: { "BK_Number": "BK_No", "BK_name": "BK_Name", "BK_row": "BK_Rack" }
