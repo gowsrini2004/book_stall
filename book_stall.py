@@ -170,6 +170,7 @@ if st.session_state.show_admin_login and not st.session_state.is_admin:
 # ---------------------------
 # Load sheet (if configured)
 # ---------------------------
+df_raw, load_error = None, None
 if SHEET_ID and SHEET_NAME:
     try:
         df_raw = fetch_sheet_df(SHEET_ID, SHEET_NAME)
