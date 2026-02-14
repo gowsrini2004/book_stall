@@ -193,21 +193,24 @@ st.markdown(
 # ---------------------------
 # Compact Header (Navigation & Admin)
 # ---------------------------
-h_left, h_right = st.columns([8, 2])
+h_left, h_right = st.columns([7, 3])
 
 with h_left:
     st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
-    st.markdown("## 📚 RACK Search")
+    # Sub-columns to keep title and gear button tightly together
+    c1, c2 = st.columns([0.85, 0.15])
+    with c1:
+        st.markdown("## 📚 RACK Search")
+    with c2:
+        if not st.session_state.is_admin:
+            st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+            if st.button("⚙️", key="admin_btn"):
+                st.session_state.show_admin_login = True
+                st.rerun()
 
 with h_right:
     st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
-    if not st.session_state.is_admin:
-        # Normal sized gear button
-        if st.button("⚙️", key="admin_btn"):
-            st.session_state.show_admin_login = True
-            st.rerun()
-    else:
-        # Wide Logout button with icon + text
+    if st.session_state.is_admin:
         if st.button("🚪 Logout", key="logout_btn", use_container_width=True, type="secondary"):
             st.session_state.is_admin = False
             st.session_state.show_admin_login = False
