@@ -413,8 +413,7 @@ def render_search_interface(df: pd.DataFrame):
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.4);
-            backdrop-filter: blur(8px);
+            background: transparent;
             display: none;
             justify-content: center;
             align-items: center;
@@ -423,13 +422,13 @@ def render_search_interface(df: pd.DataFrame):
         }
         #modal-content {
             background: #1a1a1a;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.2);
             border-radius: 24px;
             max-width: 500px;
             width: 100%;
             position: relative;
             padding: 24px;
-            box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+            box-shadow: 0 40px 100px rgba(0,0,0,0.9), 0 0 40px rgba(0, 194, 255, 0.1);
             animation: modalIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         @keyframes modalIn {
