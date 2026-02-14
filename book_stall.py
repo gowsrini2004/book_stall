@@ -308,14 +308,32 @@ else:
     if "num_results" not in st.session_state:
         st.session_state.num_results = 50
 
-    # Big search box
+    # Big search box (Suggestions dropdown)
     st.markdown('<div class="big-search">', unsafe_allow_html=True)
-    query = st.text_input(
-        "Search",
+    
+    # Pre-generate suggestion strings
+    # We store the mapping in a dict to retrieve the row index later
+    suggestion_to_id = {
+        f"#{row['BK_Number']} - {row['BK_name']} | 📍 {row['BK_row']}": idx 
+        for idx, row in df.iterrows()
+    }
+    suggestion_list = list(suggestion_to_id.keys())
+
+    selected_suggestion = st.selectbox(
+        "Search Suggestions",
+        options=suggestion_list,
+        index=None,
         placeholder="Start Typing to Search",
         label_visibility="collapsed",
     )
     st.markdown("</div>", unsafe_allow_html=True)
+
+    # Convert selection to query for filtering
+    query = ""
+    if selected_suggestion:
+        # If selected, we want to show exactly that one book
+        target_idx = suggestion_to_id[selected_suggestion]
+        query = str(df.loc[target_idx, "BK_Number"])
 
     # Reset pagination if query changes
     if "last_query" not in st.session_state:
@@ -325,15 +343,19 @@ else:
         st.session_state.last_query = query
 
     # --- Filtering ---
-    def smart_filter(data: pd.DataFrame, q: str) -> pd.DataFrame:
+    def smart_filter(data: pd.DataFrame, q: str, is_exact: bool = False) -> pd.DataFrame:
         if not q or not q.strip():
             return data.copy()
 
-        qn = " ".join(q.lower().strip().split())
+        qn = q.lower().strip()
+        if is_exact:
+            return data[data["BK_Number"].astype(str).str.lower() == qn]
+        
         # Auto: match across combined blob (number+name+rack)
         return data[data["_search"].str.contains(qn, na=False)]
 
-    all_results = smart_filter(df, query)
+    # If the user chose from the dropdown, we use exact matching
+    all_results = smart_filter(df, query, is_exact=True if selected_suggestion else False)
     total_found = len(all_results)
     
     # Slice for pagination
