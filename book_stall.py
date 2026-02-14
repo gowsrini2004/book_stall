@@ -195,20 +195,12 @@ st.markdown(
 # Compact Header (Admin small button)
 # ---------------------------
 
-h_left, h_right = st.columns([8, 2])
-
-with h_left:
-    st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
-    st.markdown("## 📚 RACK Search")
-
-with h_right:
-    st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
-    if st.session_state.is_admin:
-        # Wide Logout button with icon + text
-        if st.button("🚪 Logout", key="logout_btn", use_container_width=True, type="secondary"):
-            st.session_state.is_admin = False
-            st.session_state.show_admin_login = False
-            st.rerun()
+if st.session_state.is_admin:
+    # Wide Logout button with icon + text
+    if st.button("🚪 Logout", key="logout_btn", use_container_width=True, type="secondary"):
+        st.session_state.is_admin = False
+        st.session_state.show_admin_login = False
+        st.rerun()
 
 # ---------------------------
 # Admin login (Full Screen when active)
