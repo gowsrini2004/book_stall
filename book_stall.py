@@ -245,7 +245,7 @@ if st.session_state.is_admin:
 
             st.caption("Preview:")
             try:
-                mapped_preview = apply_mapping(preview_df, new_mapping)
+                mapped_preview = apply_mapping(df_raw, new_mapping)
                 st.dataframe(mapped_preview[APP_FIELDS], width="stretch", height=250)
             except Exception as e:
                 st.info(f"Preview not ready: {e}")
@@ -262,9 +262,7 @@ if st.session_state.is_admin:
 # ---------------------------
 st.divider()
 
-if not cfg.get("sheet_url") or not cfg.get("sheet_name"):
-    st.warning("Admin has not configured the Google Sheet yet. Tap Admin → Setup & Mapping.")
-elif load_error:
+if load_error:
     st.error(f"Could not load sheet: {load_error}")
     st.info("Make sure the Sheet is shared as: Anyone with link → Viewer")
 elif df_raw is None:
