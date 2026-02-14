@@ -746,15 +746,15 @@ def render_search_interface(df: pd.DataFrame):
             // Hidden Admin Portal Trigger
             if (qClean === 'admin_login') {
                 resultsArea.innerHTML = `
-                    <div class="result-card" onclick="window.parent.location.href='?login=admin'" style="cursor:pointer; border: 2px solid #00c2ff; background: rgba(0, 194, 255, 0.05);">
+                    <div class="result-card" onclick="window.top.location.search = '?login=admin'" style="cursor:pointer; border: 2px solid #00c2ff; background: rgba(0, 194, 255, 0.05); transition: transform 0.2s;">
                         <div class="badge-row">
+                            <div class="placeholder-badge"></div>
+                            <div class="placeholder-badge"></div>
                             <div class="tag-badge" style="background:rgba(0,194,255,0.1); color:#00c2ff; border-color:#00c2ff;">ADMIN PORTAL</div>
-                            <div class="placeholder-badge"></div>
-                            <div class="placeholder-badge"></div>
                         </div>
                         <div class="name-row">
-                            <div class="book-name">Click here to access Admin Login</div>
-                            <div class="img-btn sm-icon" style="background:#00c2ff; border-color:#00c2ff; color:white;">⚙️</div>
+                            <div class="book-name">Access Admin Panel - Click to Login</div>
+                            <div style="width:40px;"></div>
                         </div>
                     </div>
                 `;
