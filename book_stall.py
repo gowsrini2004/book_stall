@@ -4,7 +4,7 @@ import re
 import json
 from pathlib import Path
 
-st.set_page_config(page_title="BK Search Pro", layout="centered")  # better for phone
+st.set_page_config(page_title="BSRS", layout="centered")  # better for phone
 
 CONFIG_PATH = Path("config.json")
 ADMIN_PASSWORD = "mother"
