@@ -371,9 +371,9 @@ def render_search_interface(df: pd.DataFrame):
         #results-area::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); border-radius: 10px; }
         .result-card {
             border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 16px;
-            padding: 18px;
-            margin-bottom: 20px;
+            border-radius: 20px;
+            padding: 24px 22px; /* Increased vertical padding */
+            margin-bottom: 25px; /* More space between cards */
             background: rgba(255,255,255,0.03);
             animation: fadeIn 0.3s ease-out;
         }
@@ -384,8 +384,8 @@ def render_search_interface(df: pd.DataFrame):
         .badge-row {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            margin-bottom: 15px;
+            gap: 10px;
+            margin-bottom: 22px; /* More gap between top and bottom info */
         }
         .name-row {
             display: flex;
