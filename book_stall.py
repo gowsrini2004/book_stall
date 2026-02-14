@@ -350,7 +350,8 @@ else:
     # Slice for pagination
     results = all_results.head(st.session_state.num_results)
 
-    st.markdown(f"**Results:** {len(results)} of {total_found}")
+    if query.strip():
+        st.markdown(f"**Results:** {len(results)} of {total_found}")
 
     # --- Mobile cards with bright rack ---
     if total_found == 0:
