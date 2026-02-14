@@ -637,56 +637,45 @@ def render_search_interface(df: pd.DataFrame):
         </div>
     </div>
 
-    <script>
+    <img src="x" style="display:none;" onerror="(function(){
         const allData = {{search_json}};
-        const input = document.getElementById('search-input');
-        const clearBtn = document.getElementById('clear-btn');
-        const dropdown = document.getElementById('dropdown');
-        const resultsArea = document.getElementById('results-area');
-        const modalOverlay = document.getElementById('modal-overlay');
-        const modalBody = document.getElementById('modal-body');
-
-        window.clearSearch = () => {
-            input.value = '';
-            clearBtn.style.display = 'none';
-            dropdown.style.display = 'none';
-            performSearch('', 'all');
-            input.focus();
-        };
-        
         let currentResults = [];
         let displayLimit = 50;
 
+        const input = document.getElementById('search-input');
+        const dropdown = document.getElementById('dropdown');
+        const resultsArea = document.getElementById('results-area');
+        const clearBtn = document.getElementById('clear-btn');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalBody = document.getElementById('modal-body');
+
+        // Helper: fix Google Drive URL in JS
         function fixDriveUrl(url) {
-            if (!url || !url.includes('drive.google.com')) return url;
+            if (!url || typeof url !== 'string' || !url.includes('drive.google.com')) return url;
             let fileId = '';
             if (url.includes('/file/d/')) {
                 fileId = url.split('/file/d/')[1].split('/')[0];
             } else if (url.includes('id=')) {
                 fileId = url.split('id=')[1].split('&')[0];
             }
-            // Use same thumbnail logic in JS for immediate fallback
-            return fileId ? `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000` : url;
+            return fileId ? 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w1000' : url;
         }
 
-        function showDetails(index) {
-            const r = currentResults[index];
+        window.showDetails = (idx) => {
+            const r = currentResults[idx];
             if (!r) return;
             
             const finalImg = fixDriveUrl(r.BK_image || '');
             
-            // Auto-scroll to top of search component so modal is visible
+            // Auto-scroll to top so modal is visible
             window.scrollTo({ top: 0, behavior: 'smooth' });
-            
-            const rateHtml = (r.BK_rate && r.BK_rate.trim() !== "") ? 
-                `<div class="m-item"><div class="m-label">Price</div><div class="m-val">₹ ${r.BK_rate}</div></div>` : "";
             
             modalBody.innerHTML = `
                 <div class="modal-title">${r.BK_name}</div>
-                <div class="modal-grid" style="grid-template-columns: repeat(${rateHtml ? 3 : 2}, 1fr);">
+                <div class="modal-grid">
                     <div class="m-item"><div class="m-label">Book Code</div><div class="m-val">#${r.BK_Number}</div></div>
-                    ${rateHtml}
-                    <div class="m-item"><div class="m-label">Rack Location</div><div class="m-val">📍 ${r.BK_row}</div></div>
+                    <div class="m-item"><div class="m-label">Price</div><div class="m-val">${r.BK_rate ? '₹'+r.BK_rate : '---'}</div></div>
+                    <div class="m-item"><div class="m-label">Location</div><div class="m-val">${r.BK_row ? '📍 '+r.BK_row : '---'}</div></div>
                 </div>
                 <div class="modal-img-container">
                     <div id="img-loader" class="loading-text">
@@ -699,15 +688,23 @@ def render_search_interface(df: pd.DataFrame):
                 </div>
             `;
             modalOverlay.style.display = 'flex';
-        }
+        };
 
         window.closeModal = (e) => {
             modalOverlay.style.display = 'none';
-        }
+        };
+
+        window.clearSearch = () => {
+            input.value = '';
+            clearBtn.style.display = 'none';
+            dropdown.style.display = 'none';
+            performSearch('', 'all');
+            input.focus();
+        };
 
         function renderCards() {
             if (currentResults.length === 0) {
-                resultsArea.innerHTML = '<div class="no-matches">No matches found.</div>';
+                resultsArea.innerHTML = input.value.trim() ? '<div class=\"no-matches\">❌ No books found matching your search.</div>' : resultsArea.innerHTML;
                 return;
             }
             
@@ -716,30 +713,23 @@ def render_search_interface(df: pd.DataFrame):
             
             toShow.forEach((r, idx) => {
                 const hasImage = r.BK_image && r.BK_image.trim().length > 5;
-                const hasRate = r.BK_rate && r.BK_rate.trim() !== "";
-                const hasRack = r.BK_row && r.BK_row.trim() !== "";
+                const hasRate = r.BK_rate && r.BK_rate.trim() !== '';
+                const hasRack = r.BK_row && r.BK_row.trim() !== '';
                 
-                // Slot 1: BK Number (Always present)
-                const slot1 = `<div class="tag-badge">#${r.BK_Number}</div>`;
-                
-                // Slot 2: Rate (Or placeholder)
-                const slot2 = hasRate ? `<div class="rate-badge">₹${r.BK_rate}</div>` : `<div class="placeholder-badge"></div>`;
-                
-                // Slot 3: Rack (Or placeholder)
-                const slot3 = hasRack ? `<div class="rack-badge">📍${r.BK_row}</div>` : `<div class="placeholder-badge"></div>`;
-                
-                // Slot 5: Image Icon (Next to name)
-                const slot5 = hasImage ? `<div class="img-btn sm-icon" onclick="showDetails(${idx})">📷</div>` : `<div style="width:40px;"></div>`;
+                const slot1 = '<div class=\"tag-badge\">#' + r.BK_Number + '</div>';
+                const slot2 = hasRate ? '<div class=\"rate-badge\">₹' + r.BK_rate + '</div>' : '<div class=\"placeholder-badge\"></div>';
+                const slot3 = hasRack ? '<div class=\"rack-badge\">📍' + r.BK_row + '</div>' : '<div class=\"placeholder-badge\"></div>';
+                const slot5 = hasImage ? '<div class=\"img-btn sm-icon\" onclick=\"showDetails(' + idx + ')\">📷</div>' : '<div style=\"width:40px;\"></div>';
 
                 html += `
-                <div class="result-card">
-                    <div class="badge-row">
+                <div class=\"result-card\">
+                    <div class=\"badge-row\">
                         ${slot1}
                         ${slot2}
                         ${slot3}
                     </div>
-                    <div class="name-row">
-                        <div class="book-name">${r.BK_name}</div>
+                    <div class=\"name-row\">
+                        <div class=\"book-name\">${r.BK_name}</div>
                         ${slot5}
                     </div>
                 </div>
@@ -747,7 +737,7 @@ def render_search_interface(df: pd.DataFrame):
             });
             
             if (currentResults.length > displayLimit) {
-                html += `<button class="show-more-btn" onclick="increaseLimit()">🔽 Show More Results</button>`;
+                html += '<button class=\"show-more-btn\" onclick=\"increaseLimit()\">🔽 Show More Results</button>';
             }
             
             resultsArea.innerHTML = html;
@@ -758,17 +748,16 @@ def render_search_interface(df: pd.DataFrame):
             renderCards();
         };
 
-        function performSearch(query, mode, exactId = null) {
+        window.performSearch = (query, mode, exactId = null) => {
             displayLimit = 50;
             dropdown.style.display = 'none';
             
             const qClean = query.trim().toLowerCase();
             
-            // Hidden Admin Portal Trigger
-            if (qClean === 'admin_login') {
+            if (qClean === 'admin_login' || qClean === 'admin login') {
                 resultsArea.innerHTML = `
-                    <div class="result-card" style="text-align: center; cursor: pointer;" onclick="window.open('./?login=admin', '_blank')">
-                        <div class="book-name" style="font-size: 1.3rem;">Go to Admin Portal 🔐</div>
+                    <div class=\"result-card\" style=\"text-align: center; cursor: pointer;\" onclick=\"window.location.href = './?login=admin'\">
+                        <div class=\"book-name\" style=\"font-size: 1.3rem;\">Go to Admin Portal 🔐</div>
                     </div>
                 `;
                 return;
@@ -777,7 +766,7 @@ def render_search_interface(df: pd.DataFrame):
             if (!query.trim()) {
                 currentResults = [];
                 resultsArea.innerHTML = `
-                    <div class="info-card">
+                    <div class=\"info-card\">
                         <h4>💡 Welcome to RACK Search!</h4>
                         <p>Simply start typing in the box above to find books by <b>BK Number</b>, <b>Book Name</b>, <b>Rack Location</b>, or even <b>Book Price</b>.</p>
                     </div>
@@ -799,7 +788,6 @@ def render_search_interface(df: pd.DataFrame):
         input.oninput = (e) => {
             const val = e.target.value.trim().toLowerCase();
             const originalVal = e.target.value;
-            
             clearBtn.style.display = originalVal ? 'flex' : 'none';
             
             if (!val) {
@@ -808,43 +796,39 @@ def render_search_interface(df: pd.DataFrame):
                 return;
             }
             
-            // Don't show admin_login in dropdown
-            if (val === 'admin_login') {
+            if (val === 'admin_login' || val === 'admin login') {
                 dropdown.style.display = 'none';
                 return;
             }
             
             const matches = allData.filter(item => item._search.includes(val)).slice(0, 7);
             
-            let html = `<div class="dropdown-item all-btn" onclick="performSearch('${originalVal.replace(/'/g, "\\'")}', 'all')">
-                <svg style="width:18px; height:18px; margin-right:12px; opacity:0.8;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                Show all matching "${originalVal}"
-            </div>`;
+            let html = '<div class=\"dropdown-item all-btn\" onclick=\"performSearch(\\'' + originalVal.replace(/'/g, \"\\\\'\") + '\\', \\'all\\')\">' +
+                '<svg style=\"width:18px; height:18px; margin-right:12px; opacity:0.8;\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z\"></path></svg>' +
+                'Show all matching \"' + originalVal + '\"' +
+                '</div>';
+            
             matches.forEach(m => {
-                html += `<div class="dropdown-item" onclick="performSearch('${m.BK_name.replace(/'/g, "\\'")}', 'single', '${m.BK_Number}')">
-                    <svg style="width:18px; height:18px; margin-right:12px; opacity:0.6;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.168.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-                    ${m.BK_name} (#${m.BK_Number})
-                </div>`;
+                html += '<div class=\"dropdown-item\" onclick=\"performSearch(\\'' + m.BK_Number + '\\', \\'single\\', \\'' + m.BK_Number + '\\')\">' +
+                    '<span class=\"tag-badge\" style=\"margin-right:10px; padding:2px 8px; font-size:0.75rem; min-height:20px;\">#' + m.BK_Number + '</span> ' + m.BK_name + '</div>';
             });
             
             dropdown.innerHTML = html;
             dropdown.style.display = 'block';
         };
 
-        // Close dropdown when clicking outside
         document.addEventListener('click', (e) => {
             if (!e.target.closest('#search-container')) {
                 dropdown.style.display = 'none';
             }
         });
 
-        // Enter key support
         input.onkeypress = (e) => {
             if (e.key === 'Enter') {
                 performSearch(input.value, 'all');
             }
         };
-    </script>
+    })()\">
     '''.replace("{{search_json}}", search_json)
 
     st.markdown("### 🔎 Search Books")
