@@ -32,6 +32,24 @@ import io
 def extract_sheet_id(url: str | None):
     match = re.search(r"/d/([a-zA-Z0-9-_]+)", url or "")
     return match.group(1) if match else None
+ 
+def fix_drive_url(url: str) -> str:
+    """Converts a Google Drive sharing link to a direct image download link."""
+    if "drive.google.com" not in url:
+        return url
+    
+    # Extract file ID
+    file_id = ""
+    # Format 1: /file/d/ID/view
+    if "/file/d/" in url:
+        file_id = url.split("/file/d/")[1].split("/")[0]
+    # Format 2: id=ID
+    elif "id=" in url:
+        file_id = url.split("id=")[1].split("&")[0]
+    
+    if file_id:
+        return f"https://drive.google.com/uc?export=view&id={file_id}"
+    return url
 
 
 # ---------------------------
@@ -69,7 +87,10 @@ def apply_mapping(df: pd.DataFrame, mapping: dict) -> pd.DataFrame:
     # Clean + normalize search fields (excluding BK_image from search blob)
     for c in APP_FIELDS:
         if c in df2.columns:
-            df2[c] = df2[c].astype(str).replace(["nan", "None", "<NA>"], "").str.strip()
+            if c == "BK_image":
+                df2[c] = df2[c].astype(str).replace(["nan", "None", "<NA>"], "").str.strip().apply(fix_drive_url)
+            else:
+                df2[c] = df2[c].astype(str).replace(["nan", "None", "<NA>"], "").str.strip()
         else:
             df2[c] = ""
 
@@ -525,13 +546,26 @@ def render_search_interface(df: pd.DataFrame):
         let currentResults = [];
         let displayLimit = 50;
 
+        function fixDriveUrl(url) {
+            if (!url.includes('drive.google.com')) return url;
+            let fileId = '';
+            if (url.includes('/file/d/')) {
+                fileId = url.split('/file/d/')[1].split('/')[0];
+            } else if (url.includes('id=')) {
+                fileId = url.split('id=')[1].split('&')[0];
+            }
+            return fileId ? `https://drive.google.com/uc?export=view&id=${fileId}` : url;
+        }
+
         function showDetails(index) {
             const r = currentResults[index];
             if (!r) return;
             
+            const finalImg = fixDriveUrl(r.BK_image || '');
+            
             modalBody.innerHTML = `
                 <div class="modal-img-container">
-                    <img class="modal-img" src="${r.BK_image || ''}" onerror="this.src='https://via.placeholder.com/400x600?text=No+Preview+Available'">
+                    <img class="modal-img" src="${finalImg}" onerror="this.src='https://via.placeholder.com/400x600?text=No+Preview+Available'">
                 </div>
                 <div class="modal-title">${r.BK_name}</div>
                 <div class="modal-grid">
