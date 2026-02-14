@@ -308,22 +308,30 @@ else:
     if "num_results" not in st.session_state:
         st.session_state.num_results = 50
 
-    # Big search box
+    # Big search box (Suggestions dropdown)
     st.markdown('<div class="big-search">', unsafe_allow_html=True)
     
-    if "search_query" not in st.session_state:
-        st.session_state.search_query = ""
+    # Pre-generate suggestion strings for the entire dataset
+    suggestion_options = [
+        f"#{row['BK_Number']} - {row['BK_name']} | 📍 {row['BK_row']}" 
+        for _, row in df.iterrows()
+    ]
 
-    # Primary text search
-    query = st.text_input(
+    selected_suggestion = st.selectbox(
         "Search",
-        value=st.session_state.search_query,
+        options=suggestion_options,
+        index=None,
         placeholder="Start Typing to Search",
         label_visibility="collapsed",
-        key="main_search_input"
+        key="unified_search_bar"
     )
-    st.session_state.search_query = query
     st.markdown("</div>", unsafe_allow_html=True)
+
+    # Convert selection to query for filtering
+    query = ""
+    if selected_suggestion:
+        # Extract book number from the selected string "#{BK_Number} - ..."
+        query = selected_suggestion.split(" - ")[0].replace("#", "")
 
     # Reset pagination if query changes
     if "last_query" not in st.session_state:
@@ -335,43 +343,22 @@ else:
     # --- Filtering ---
     def smart_filter(data: pd.DataFrame, q: str) -> pd.DataFrame:
         if not q or not q.strip():
-            return data.iloc[0:0]  # Return empty if nothing typed
+            return data.iloc[0:0]  # Return empty if nothing selected
 
         qn = q.lower().strip()
-        # Auto: match across combined blob (number+name+rack)
-        return data[data["_search"].str.contains(qn, na=False)]
+        # Filter based on the selected book number
+        return data[data["BK_Number"].astype(str).str.lower() == qn]
 
     all_results = smart_filter(df, query)
     total_found = len(all_results)
     
-    # --- Dropdown Suggestions (Top 7) ---
-    if query.strip() and total_found > 1:
-        top_7 = all_results.head(7)
-        # Format for selectbox
-        options = [f"#{r['BK_Number']} - {r['BK_name']} | 📍 {r['BK_row']}" for _, r in top_7.iterrows()]
-        
-        selected = st.selectbox(
-            "Quick Picks (Top 7)",
-            options=options,
-            index=None,
-            placeholder="Select a book for quick detail...",
-            key="quick_dropdown"
-        )
-        
-        if selected:
-            # Extract book number from the selected string "#{BK_Number} - ..."
-            selected_bk = selected.split(" - ")[0].replace("#", "")
-            st.session_state.search_query = selected_bk
-            st.rerun()
-        st.divider()
-
     # Slice for pagination
     results = all_results.head(st.session_state.num_results)
 
     if query.strip():
         st.markdown(f"**Results:** {len(results)} of {total_found}")
 
-    # --- Mobile cards with bright rack ---
+    # --- Mobile cards ---
     if query.strip() and total_found == 0:
         st.warning("No matches found.")
     elif query.strip():
