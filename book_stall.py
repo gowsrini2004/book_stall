@@ -293,11 +293,9 @@ else:
     st.markdown("### 🔎 Search Books")
     st.caption("Type book number / name / rack. (No case sensitivity)")
 
-    # --- Settings hidden inside expander (phone-friendly) ---
-    with st.expander("⚙️ Search Settings", expanded=False):
-        mode = st.selectbox("Mode", ["Auto", "Number", "Name", "Rack"], index=0)
-        limit = st.selectbox("Max results", [10, 20, 50, 100], index=1)
-        show_all = st.toggle("Show all (without typing)", value=False)
+    # --- Pagination state ---
+    if "num_results" not in st.session_state:
+        st.session_state.num_results = 50
 
     # Big search box
     st.markdown('<div class="big-search">', unsafe_allow_html=True)
@@ -308,36 +306,36 @@ else:
     )
     st.markdown("</div>", unsafe_allow_html=True)
 
+    # Reset pagination if query changes
+    if "last_query" not in st.session_state:
+        st.session_state.last_query = ""
+    if query != st.session_state.last_query:
+        st.session_state.num_results = 50
+        st.session_state.last_query = query
+
     # --- Filtering ---
-    def smart_filter(data: pd.DataFrame, q: str, mode: str, show_all: bool) -> pd.DataFrame:
-        if show_all and (not q or not q.strip()):
+    def smart_filter(data: pd.DataFrame, q: str) -> pd.DataFrame:
+        if not q or not q.strip():
             return data.copy()
 
-        if not q or not q.strip():
-            return data.iloc[0:0]
-
         qn = " ".join(q.lower().strip().split())
-
-        if mode == "Number":
-            return data[data["BK_Number"].astype(str).str.lower().str.contains(qn, na=False)]
-        if mode == "Name":
-            return data[data["BK_name"].astype(str).str.lower().str.contains(qn, na=False)]
-        if mode == "Rack":
-            return data[data["BK_row"].astype(str).str.lower().str.contains(qn, na=False)]
-
         # Auto: match across combined blob (number+name+rack)
         return data[data["_search"].str.contains(qn, na=False)]
 
-    results = smart_filter(df, query, mode, show_all).head(int(limit))
+    all_results = smart_filter(df, query)
+    total_found = len(all_results)
+    
+    # Slice for pagination
+    results = all_results.head(st.session_state.num_results)
 
-    st.markdown(f"**Results:** {len(results)}")
+    st.markdown(f"**Results:** {len(results)} of {total_found}")
 
     # --- Mobile cards with bright rack ---
-    if len(results) == 0:
+    if total_found == 0:
         if query.strip():
             st.warning("No matches found.")
         else:
-            st.info("Start typing to search.")
+            st.info("No data available in the sheet.")
     else:
         for _, r in results.iterrows():
             st.markdown(
@@ -353,6 +351,14 @@ else:
                 unsafe_allow_html=True,
             )
 
-        if len(results) == 1:
+        # Show More Button
+        if total_found > st.session_state.num_results:
+            if st.button("🔽 Show More", use_container_width=True):
+                st.session_state.num_results += 50
+                st.rerun()
+
+        if total_found == 0 and query.strip():
+            st.warning("No matches found.")
+        elif total_found == 1:
             one = results.iloc[0]
             st.success(f"✅ Location: **{one['BK_row']}**  |  Book: **{one['BK_name']}** (#{one['BK_Number']})")
