@@ -119,25 +119,11 @@ if "is_admin" not in st.session_state:
 if "show_admin_login" not in st.session_state:
     st.session_state.show_admin_login = False
 
-# --- BULLETPROOF ADMIN TRIGGER ---
-# Detect 'login=admin' in URL using every possible Streamlit method
-try:
-    # Method 1: Modern st.query_params (dict-like)
-    qp = st.query_params.to_dict()
-    if qp.get("login") == "admin":
-        st.session_state.show_admin_login = True
-        st.query_params.clear()
-        st.rerun()
-except Exception:
-    try:
-        # Method 2: Older st.experimental_get_query_params (returns lists)
-        eqp = st.experimental_get_query_params()
-        if "admin" in eqp.get("login", []):
-            st.session_state.show_admin_login = True
-            st.experimental_set_query_params() # Clear params
-            st.rerun()
-    except Exception:
-        pass
+# Handle hidden admin trigger
+if "login" in st.query_params and st.query_params["login"] == "admin":
+    st.session_state.show_admin_login = True
+    # We don't force rerun/clear here to avoid SessionInfo initialization errors
+    # The script will naturally proceed to show the login box if show_admin_login is True
 
 cfg = load_config()
 cfg.setdefault("sheet_url", "")
