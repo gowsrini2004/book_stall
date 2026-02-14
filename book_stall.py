@@ -357,7 +357,7 @@ def render_search_interface(df: pd.DataFrame):
 
         #results-area {
             margin-top: 10px;
-            padding-bottom: 200px; /* Extra space at the bottom to prevent clipping */
+            padding-bottom: 400px; /* Force extra space at the bottom */
         }
         .result-card {
             border: 1px solid rgba(255,255,255,0.12);
@@ -772,9 +772,8 @@ def render_search_interface(df: pd.DataFrame):
     '''.replace("{{search_json}}", search_json)
 
     st.markdown("### 🔎 Search Books")
-    # Increase height drastically or use dynamic auto-resizing if possible
-    # For now, 2500px is safer for 50 results
-    components.html(html_code, height=2500, scrolling=False)
+    # Using a massive height to ensure 50 results + padding never get cut off
+    components.html(html_code, height=4500, scrolling=False)
 
 # ---------------------------
 # Load sheet (if configured)
