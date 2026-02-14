@@ -9,7 +9,7 @@ st.set_page_config(page_title="BK Search Pro", layout="centered")  # better for 
 CONFIG_PATH = Path("config.json")
 ADMIN_PASSWORD = "mother"
 
-APP_FIELDS = ["BK_Number", "BK_name", "BK_rate", "BK_row"]  # standard names inside the app
+APP_FIELDS = ["BK_Number", "BK_name", "BK_rate", "BK_row", "BK_image"]  # standard names inside the app
 
 
 # ---------------------------
@@ -52,20 +52,26 @@ def fetch_sheet_df(sheet_id: str, sheet_name: str) -> pd.DataFrame:
         raise Exception(f"Failed to fetch data: {str(e)}")
 
 def apply_mapping(df: pd.DataFrame, mapping: dict) -> pd.DataFrame:
-    # mapping: { "BK_Number": "BK_No", "BK_name": "BK_Name", "BK_row": "BK_Rack" }
-    missing = [k for k in APP_FIELDS if k not in mapping or not mapping[k]]
+    # BK_image is optional
+    required_fields = ["BK_Number", "BK_name", "BK_rate", "BK_row"]
+    missing = [k for k in required_fields if k not in mapping or not mapping[k]]
     if missing:
-        raise ValueError(f"Mapping not set for: {missing}")
+        raise ValueError(f"Mapping not set for mandatory fields: {missing}")
 
     for app_col, sheet_col in mapping.items():
         if sheet_col not in df.columns:
             raise ValueError(f"Mapped column '{sheet_col}' not found. Found: {df.columns.tolist()}")
 
-    df2 = df.rename(columns={mapping[k]: k for k in APP_FIELDS})
+    # Rename only columns that are mapped
+    rename_map = {mapping[k]: k for k in APP_FIELDS if k in mapping and mapping[k]}
+    df2 = df.rename(columns=rename_map)
 
-    # Clean + normalize search fields
+    # Clean + normalize search fields (excluding BK_image from search blob)
     for c in APP_FIELDS:
-        df2[c] = df2[c].astype(str).fillna("").str.strip()
+        if c in df2.columns:
+            df2[c] = df2[c].astype(str).replace(["nan", "None", "<NA>"], "").str.strip()
+        else:
+            df2[c] = ""
 
     # Create a single search blob (number + name + rate + row)
     df2["_search"] = (
@@ -140,6 +146,12 @@ st.markdown(
       .tiny { opacity: 0.75; font-size: 0.85rem; }
       .rowline { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; }
       .btn-row { display:flex; justify-content:flex-end; }
+      
+      /* Target the logout button specifically if it's the secondary type */
+      div[data-testid="stButton"] button:hover {
+          border-color: #ff4b4b22 !important;
+          background-color: #ff4b4b11 !important;
+      }
     </style>
     """,
     unsafe_allow_html=True,
@@ -149,28 +161,28 @@ st.markdown(
 # Compact Header (Admin small button)
 # ---------------------------
 
-header_left, header_right = st.columns([9, 1])
+# ---------------------------
+# Compact Header (Navigation & Admin)
+# ---------------------------
+h_left, h_right = st.columns([8, 2])
 
-with header_left:
-    st.markdown("<div style='height:26px'></div>", unsafe_allow_html=True)  # more space above header
+with h_left:
+    st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
     st.markdown("## 📚 RACK Search")
 
-with header_right:
+with h_right:
+    st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
     if not st.session_state.is_admin:
-        st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)  # more space above header
-        st.button("⚙️", key="admin_btn")
+        # Normal sized gear button
+        if st.button("⚙️", key="admin_btn"):
+            st.session_state.show_admin_login = True
+            st.rerun()
     else:
-        st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)  # more space above header
-        st.button("🚪", key="logout_btn")
-
-# Handle button clicks separately (so layout stays clean)
-if not st.session_state.is_admin:
-    if st.session_state.get("admin_btn"):
-        st.session_state.show_admin_login = True
-else:
-    if st.session_state.get("logout_btn"):
-        st.session_state.is_admin = False
-        st.session_state.show_admin_login = False
+        # Wide Logout button with icon + text
+        if st.button("🚪 Logout", key="logout_btn", use_container_width=True, type="secondary"):
+            st.session_state.is_admin = False
+            st.session_state.show_admin_login = False
+            st.rerun()
 
 
 # ---------------------------
@@ -197,6 +209,460 @@ if st.session_state.show_admin_login and not st.session_state.is_admin:
 
 
 # ---------------------------
+# GLOBAL SEARCH RENDERER
+# ---------------------------
+def render_search_interface(df: pd.DataFrame):
+    if df is None:
+        st.error("Sheet not available for search.")
+        return
+
+    # --- Integration: Consolidated HTML Search & Results Component ---
+    import streamlit.components.v1 as components
+
+    search_json = df[APP_FIELDS + ["_search"]].to_json(orient="records")
+
+    # We use a regular string and then replace {{search_json}} to avoid f-string SyntaxErrors
+    html_code = r'''
+    <style>
+        body {
+            background: transparent;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        #search-container {
+            position: relative;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        #search-input {
+            width: 100%;
+            padding: 14px 16px;
+            padding-right: 50px;
+            font-size: 1.15rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            color: white;
+            outline: none;
+            box-sizing: border-box;
+            transition: all 0.2s;
+        }
+        #search-input:focus {
+            border-color: #00c2ff;
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 12px rgba(0, 194, 255, 0.2);
+        }
+        #dropdown {
+            position: absolute;
+            top: 60px;
+            left: 0;
+            right: 0;
+            background: #1e1e1e;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+            display: none;
+            max-height: 350px;
+            overflow-y: auto;
+            z-index: 2000;
+        }
+        .dropdown-item {
+            padding: 14px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 1.05rem;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+        }
+        .dropdown-item:last-child { border-bottom: none; }
+        .dropdown-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+        .dropdown-item.all-btn {
+            color: #00c2ff;
+            font-weight: 700;
+            background: rgba(0, 194, 255, 0.05);
+        }
+
+        #search-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #00c2ff;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            width: 36px;
+            height: 36px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        #search-btn:hover { background: #00ace6; }
+
+        #results-area {
+            margin-top: 10px;
+        }
+        .result-card {
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 16px;
+            padding: 18px;
+            margin-bottom: 15px;
+            background: rgba(255,255,255,0.03);
+            animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .rowline {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .badge-group { display: flex; gap: 8px; flex-wrap: wrap; }
+        .tag-badge {
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-weight: 800;
+            font-size: 1rem;
+            background: rgba(255, 193, 7, 0.15);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            color: #ffc107;
+        }
+        .rate-badge {
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 1rem;
+            background: rgba(0, 194, 255, 0.05);
+            border: 1px solid rgba(0, 194, 255, 0.15);
+            color: #00c2ff;
+        }
+        .rack-badge {
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-weight: 800;
+            font-size: 1rem;
+            background: rgba(0, 194, 255, 0.15);
+            border: 1px solid rgba(0, 194, 255, 0.3);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .img-btn {
+            padding: 8px 12px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-size: 1.1rem;
+        }
+        .img-btn:hover {
+            background: rgba(0, 194, 255, 0.2);
+            border-color: #00c2ff;
+            transform: scale(1.05);
+        }
+        
+        /* Modal - Professional Popup */
+        #modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            padding: 20px;
+        }
+        #modal-content {
+            background: #1a1a1a;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 24px;
+            max-width: 480px;
+            width: 100%;
+            position: relative;
+            padding: 28px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.8);
+            animation: modalIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.9) translateY(20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        #modal-close {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            transition: all 0.2s;
+        }
+        #modal-close:hover { background: rgba(255, 0, 0, 0.3); color: white; }
+        
+        .modal-img-container {
+            width: 100%;
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 24px;
+            background: #000;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .modal-img {
+            width: 100%;
+            height: auto;
+            max-height: 450px;
+            display: block;
+            object-fit: contain;
+        }
+        .modal-title { font-size: 1.6rem; font-weight: 800; color: #00c2ff; margin-bottom: 15px; line-height: 1.2; }
+        .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .m-item { background: rgba(255,255,255,0.03); padding: 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.05); }
+        .m-label { font-size: 0.75rem; color: #888; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
+        .m-val { font-size: 1.1rem; font-weight: 700; color: #fff; }
+
+        .book-name {
+            font-size: 1.35rem;
+            font-weight: 700;
+            line-height: 1.4;
+            color: #ffffff;
+        }
+        .info-card {
+            background: rgba(0, 194, 255, 0.05);
+            border: 1px solid rgba(0, 194, 255, 0.15);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: left;
+            margin-top: 10px;
+        }
+        .info-card h4 { margin-top: 0; color: #00c2ff; font-size: 1.2rem; }
+        .info-card p { margin-bottom: 0; opacity: 0.9; line-height: 1.6; }
+        
+        .no-matches {
+            padding: 30px;
+            text-align: center;
+            opacity: 0.7;
+            background: rgba(255,255,255,0.02);
+            border-radius: 16px;
+            border: 1px dashed rgba(255,255,255,0.1);
+        }
+        
+        .show-more-btn {
+            width: 100%;
+            padding: 14px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 10px;
+            transition: background 0.2s;
+        }
+        .show-more-btn:hover { background: rgba(255,255,255,0.1); }
+    </style>
+
+    <div id="search-container">
+        <div style="position: relative;">
+            <input type="text" id="search-input" placeholder="Start Typing to Search..." autocomplete="off">
+            <button id="search-btn" onclick="performSearch(document.getElementById('search-input').value, 'all')">
+                <svg style="width:18px; height:18px;" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"></path></svg>
+            </button>
+        </div>
+        <div id="dropdown"></div>
+    </div>
+
+    <!-- Details Modal -->
+    <div id="modal-overlay" onclick="closeModal(event)">
+        <div id="modal-content" onclick="event.stopPropagation()">
+            <button id="modal-close" onclick="closeModal()">✕</button>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <div id="results-area">
+        <div class="info-card">
+            <h4>💡 Welcome to RACK Search!</h4>
+            <p>Simply start typing in the box above to find books by <b>BK Number</b>, <b>Book Name</b>, <b>Rack Location</b>, or even <b>Book Price</b>.</p>
+        </div>
+    </div>
+
+    <script>
+        const allData = {{search_json}};
+        const input = document.getElementById('search-input');
+        const dropdown = document.getElementById('dropdown');
+        const resultsArea = document.getElementById('results-area');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalBody = document.getElementById('modal-body');
+        
+        let currentResults = [];
+        let displayLimit = 50;
+
+        function showDetails(index) {
+            const r = currentResults[index];
+            if (!r) return;
+            
+            modalBody.innerHTML = `
+                <div class="modal-img-container">
+                    <img class="modal-img" src="${r.BK_image || ''}" onerror="this.src='https://via.placeholder.com/400x600?text=No+Preview+Available'">
+                </div>
+                <div class="modal-title">${r.BK_name}</div>
+                <div class="modal-grid">
+                    <div class="m-item"><div class="m-label">Book Code</div><div class="m-val">#${r.BK_Number}</div></div>
+                    <div class="m-item"><div class="m-label">Price</div><div class="m-val">₹ ${r.BK_rate}</div></div>
+                    <div class="m-item"><div class="m-label">Rack Location</div><div class="m-val">📍 ${r.BK_row}</div></div>
+                </div>
+            `;
+            modalOverlay.style.display = 'flex';
+        }
+
+        window.closeModal = (e) => {
+            modalOverlay.style.display = 'none';
+        }
+
+        function renderCards() {
+            if (currentResults.length === 0) {
+                resultsArea.innerHTML = '<div class="no-matches">No matches found.</div>';
+                return;
+            }
+            
+            let html = '';
+            const toShow = currentResults.slice(0, displayLimit);
+            
+            toShow.forEach((r, idx) => {
+                const hasImage = r.BK_image && r.BK_image.trim().length > 5;
+                const imgBtnHtml = hasImage ? `<div class="img-btn" onclick="showDetails(${idx})">📷</div>` : '';
+
+                html += `
+                <div class="result-card">
+                    <div class="rowline">
+                        <div class="badge-group">
+                            <div class="tag-badge">#${r.BK_Number}</div>
+                            <div class="rate-badge">₹ ${r.BK_rate}</div>
+                            ${imgBtnHtml}
+                        </div>
+                        <div class="rack-badge">
+                            📍 ${r.BK_row}
+                        </div>
+                    </div>
+                    <div class="book-name">${r.BK_name}</div>
+                </div>
+                `;
+            });
+            
+            if (currentResults.length > displayLimit) {
+                html += `<button class="show-more-btn" onclick="increaseLimit()">🔽 Show More Results</button>`;
+            }
+            
+            resultsArea.innerHTML = html;
+        }
+
+        window.increaseLimit = () => {
+            displayLimit += 50;
+            renderCards();
+        };
+
+        function performSearch(query, mode, exactId = null) {
+            displayLimit = 50;
+            dropdown.style.display = 'none';
+            
+            if (!query.trim()) {
+                currentResults = [];
+                resultsArea.innerHTML = `
+                    <div class="info-card">
+                        <h4>💡 Welcome to RACK Search!</h4>
+                        <p>Simply start typing in the box above to find books by <b>BK Number</b>, <b>Book Name</b>, <b>Rack Location</b>, or even <b>Book Price</b>.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            if (mode === 'single' && exactId) {
+                currentResults = allData.filter(item => String(item.BK_Number) === String(exactId));
+                input.value = currentResults[0]?.BK_name || query;
+            } else {
+                const qn = query.toLowerCase().trim();
+                currentResults = allData.filter(item => item._search.includes(qn));
+            }
+            
+            renderCards();
+        }
+
+        input.oninput = (e) => {
+            const val = e.target.value.trim().toLowerCase();
+            const originalVal = e.target.value;
+            
+            if (!val) {
+                dropdown.style.display = 'none';
+                performSearch('', 'all');
+                return;
+            }
+            
+            const matches = allData.filter(item => item._search.includes(val)).slice(0, 7);
+            
+            let html = `<div class="dropdown-item all-btn" onclick="performSearch('${originalVal.replace(/'/g, "\\'")}', 'all')">
+                <svg style="width:18px; height:18px; margin-right:12px; opacity:0.8;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                Show all matching "${originalVal}"
+            </div>`;
+            matches.forEach(m => {
+                html += `<div class="dropdown-item" onclick="performSearch('${m.BK_name.replace(/'/g, "\\'")}', 'single', '${m.BK_Number}')">
+                    <svg style="width:18px; height:18px; margin-right:12px; opacity:0.6;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.168.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                    ${m.BK_name} (#${m.BK_Number})
+                </div>`;
+            });
+            
+            dropdown.innerHTML = html;
+            dropdown.style.display = 'block';
+        };
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#search-container')) {
+                dropdown.style.display = 'none';
+            }
+        });
+
+        // Enter key support
+        input.onkeypress = (e) => {
+            if (e.key === 'Enter') {
+                performSearch(input.value, 'all');
+            }
+        };
+    </script>
+    '''.replace("{{search_json}}", search_json)
+
+    st.markdown("### 🔎 Search Books")
+    # Set height large enough for results, but disable internal scrollbar for "integrated" feel
+    components.html(html_code, height=1800, scrolling=False)
+
+# ---------------------------
 # Load sheet (if configured)
 # ---------------------------
 df_raw, load_error = None, None
@@ -217,28 +683,9 @@ if st.session_state.is_admin:
     st.divider()
     st.header("🛠️ Admin Panel")
 
-    tabs = st.tabs(["📄 View Data", "🔧 Setup & Mapping"])
+    tabs = st.tabs([" Setup & Mapping", "📄 View Data", "🔎 Search Book"])
 
     with tabs[0]:
-        st.subheader("View Sheet Data")
-
-        if not cfg.get("sheet_url") or not cfg.get("sheet_name"):
-            st.info("Go to Setup & Mapping tab and configure the sheet.")
-        elif load_error:
-            st.error(f"Could not load sheet: {load_error}")
-            st.info("Share sheet as: Anyone with link → Viewer")
-        else:
-            st.success("✅ Sheet loaded")
-            st.dataframe(df_raw, width="stretch", height=420)
-
-            st.caption("Mapped preview (what the app uses):")
-            try:
-                mapped = apply_mapping(df_raw, cfg.get("mapping", {}))
-                st.dataframe(mapped[APP_FIELDS], width="stretch", height=250)
-            except Exception as e:
-                st.warning(f"Mapping not ready: {e}")
-
-    with tabs[1]:
         st.subheader("Dynamic Column Mapping")
         st.caption(f"Connected to Sheet: {s_name}")
 
@@ -275,6 +722,11 @@ if st.session_state.is_admin:
                 options=options,
                 index=options.index(current.get("BK_row", "")) if current.get("BK_row", "") in options else 0,
             )
+            new_mapping["BK_image"] = st.selectbox(
+                "App field: BK_image (Image URL) [Optional]",
+                options=options,
+                index=options.index(current.get("BK_image", "")) if current.get("BK_image", "") in options else 0,
+            )
 
             chosen = [v for v in new_mapping.values() if v]
             dupes = {x for x in chosen if chosen.count(x) > 1}
@@ -295,302 +747,53 @@ if st.session_state.is_admin:
                 st.success("✅ Saved locally!")
                 st.rerun()
 
+    with tabs[1]:
+        st.subheader("View Sheet Data")
+
+        if not cfg.get("sheet_url") or not cfg.get("sheet_name"):
+            st.info("Go to Setup & Mapping tab and configure the sheet.")
+        elif load_error:
+            st.error(f"Could not load sheet: {load_error}")
+            st.info("Share sheet as: Anyone with link → Viewer")
+        else:
+            st.success("✅ Sheet loaded")
+            st.dataframe(df_raw, width="stretch", height=420)
+
+            st.caption("Mapped preview (what the app uses):")
+            try:
+                mapped = apply_mapping(df_raw, cfg.get("mapping", {}))
+                st.dataframe(mapped[APP_FIELDS], width="stretch", height=250)
+            except Exception as e:
+                st.warning(f"Mapping not ready: {e}")
+
+    with tabs[2]:
+        if load_error:
+            st.error(f"Could not load sheet: {load_error}")
+        elif df_raw is None:
+            st.error("Sheet not available.")
+        else:
+            try:
+                df = apply_mapping(df_raw, cfg.get("mapping", {}))
+                render_search_interface(df)
+            except Exception as e:
+                st.warning(f"App is not configured properly (mapping issue): {e}")
+
 # ---------------------------
-# USER SEARCH (mobile-first)
+# PUBLIC USER SEARCH
 # ---------------------------
-st.divider()
+if not st.session_state.is_admin:
+    st.divider()
 
-if load_error:
-    st.error(f"Could not load sheet: {load_error}")
-    st.info("Make sure the Sheet is shared as: Anyone with link → Viewer")
-elif df_raw is None:
-    st.error("Sheet not available.")
-else:
-    try:
-        df = apply_mapping(df_raw, cfg.get("mapping", {}))
-    except Exception as e:
-        st.warning(f"App is not configured properly (mapping issue): {e}")
-        st.stop()
+    if load_error:
+        st.error(f"Could not load sheet: {load_error}")
+        st.info("Make sure the Sheet is shared as: Anyone with link → Viewer")
+    elif df_raw is None:
+        st.error("Sheet not available.")
+    else:
+        try:
+            df = apply_mapping(df_raw, cfg.get("mapping", {}))
+            render_search_interface(df)
+        except Exception as e:
+            st.warning(f"App is not configured properly (mapping issue): {e}")
+            st.stop()
     
-    # --- Integration: Consolidated HTML Search & Results Component ---
-    import streamlit.components.v1 as components
-
-    # Prepare data for JS search (ensure columns exist and are clean)
-    search_json = df[APP_FIELDS + ["_search"]].to_json(orient="records")
-
-    html_code = f"""
-    <style>
-        body {{
-            background: transparent;
-            color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            margin: 0;
-            padding: 0;
-        }}
-        #search-container {{
-            position: relative;
-            width: 100%;
-            margin-bottom: 20px;
-        }}
-        #search-input {{
-            width: 100%;
-            padding: 14px 16px;
-            font-size: 1.15rem;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 12px;
-            color: white;
-            outline: none;
-            box-sizing: border-box;
-            transition: all 0.2s;
-        }}
-        #search-input:focus {{
-            border-color: #00c2ff;
-            background: rgba(255, 255, 255, 0.08);
-            box-shadow: 0 0 12px rgba(0, 194, 255, 0.2);
-        }}
-        #dropdown {{
-            position: absolute;
-            top: 60px;
-            left: 0;
-            right: 0;
-            background: #1e1e1e;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-            display: none;
-            max-height: 350px;
-            overflow-y: auto;
-            z-index: 2000;
-        }}
-        .dropdown-item {{
-            padding: 14px 16px;
-            cursor: pointer;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            font-size: 1.05rem;
-            transition: background 0.2s;
-        }}
-        .dropdown-item:last-child {{ border-bottom: none; }}
-        .dropdown-item:hover {{
-            background: rgba(255, 255, 255, 0.08);
-        }}
-        .dropdown-item.all-btn {{
-            color: #00c2ff;
-            font-weight: 700;
-            background: rgba(0, 194, 255, 0.05);
-        }}
-
-        #results-area {{
-            margin-top: 10px;
-        }}
-        .result-card {{
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 16px;
-            padding: 18px;
-            margin-bottom: 15px;
-            background: rgba(255,255,255,0.03);
-            animation: fadeIn 0.3s ease-out;
-        }}
-        @keyframes fadeIn {{
-            from {{ opacity: 0; transform: translateY(10px); }}
-            to {{ opacity: 1; transform: translateY(0); }}
-        }}
-        .rowline {{
-            display: flex;
-            justify-content: space-between;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-bottom: 16px;
-        }}
-        .badge-group {{ display: flex; gap: 8px; flex-wrap: wrap; }}
-        .tag-badge {{
-            padding: 8px 12px;
-            border-radius: 12px;
-            font-weight: 800;
-            font-size: 1rem;
-            background: rgba(255, 193, 7, 0.15);
-            border: 1px solid rgba(255, 193, 7, 0.3);
-            color: #ffc107;
-        }}
-        .rate-badge {{
-            padding: 8px 12px;
-            border-radius: 12px;
-            font-weight: 700;
-            font-size: 1rem;
-            background: rgba(0, 194, 255, 0.05);
-            border: 1px solid rgba(0, 194, 255, 0.15);
-            color: #00c2ff;
-        }}
-        .rack-badge {{
-            padding: 8px 12px;
-            border-radius: 12px;
-            font-weight: 800;
-            font-size: 1rem;
-            background: rgba(0, 194, 255, 0.15);
-            border: 1px solid rgba(0, 194, 255, 0.3);
-            color: #ffffff;
-        }}
-        .book-name {{
-            font-size: 1.35rem;
-            font-weight: 700;
-            line-height: 1.4;
-            color: #ffffff;
-        }}
-        .info-card {{
-            background: rgba(0, 194, 255, 0.05);
-            border: 1px solid rgba(0, 194, 255, 0.15);
-            border-radius: 16px;
-            padding: 20px;
-            text-align: left;
-            margin-top: 10px;
-        }}
-        .info-card h4 {{ margin-top: 0; color: #00c2ff; font-size: 1.2rem; }}
-        .info-card p {{ margin-bottom: 0; opacity: 0.9; line-height: 1.6; }}
-        
-        .no-matches {{
-            padding: 30px;
-            text-align: center;
-            opacity: 0.7;
-            background: rgba(255,255,255,0.02);
-            border-radius: 16px;
-            border: 1px dashed rgba(255,255,255,0.1);
-        }}
-        
-        .show-more-btn {{
-            width: 100%;
-            padding: 14px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            color: white;
-            border-radius: 12px;
-            cursor: pointer;
-            font-weight: 600;
-            margin-top: 10px;
-            transition: background 0.2s;
-        }}
-        .show-more-btn:hover {{ background: rgba(255,255,255,0.1); }}
-    </style>
-
-    <div id="search-container">
-        <input type="text" id="search-input" placeholder="Start Typing to Search..." autocomplete="off">
-        <div id="dropdown"></div>
-    </div>
-
-    <div id="results-area">
-        <div class="info-card">
-            <h4>💡 Welcome to RACK Search!</h4>
-            <p>Simply start typing in the box above to find books by <b>Tag Number</b>, <b>Name</b>, <b>Rack Location</b>, or even <b>Price</b>.</p>
-        </div>
-    </div>
-
-    <script>
-        const allData = {search_json};
-        const input = document.getElementById('search-input');
-        const dropdown = document.getElementById('dropdown');
-        const resultsArea = document.getElementById('results-area');
-        
-        let currentResults = [];
-        let displayLimit = 50;
-
-        function renderCards() {{
-            if (currentResults.length === 0) {{
-                resultsArea.innerHTML = '<div class="no-matches">No matches found.</div>';
-                return;
-            }}
-            
-            let html = '';
-            const toShow = currentResults.slice(0, displayLimit);
-            
-            toShow.forEach(r => {{
-                html += `
-                <div class="result-card">
-                    <div class="rowline">
-                        <div class="badge-group">
-                            <div class="tag-badge">#${{r.BK_Number}}</div>
-                            <div class="rate-badge">₹ ${{r.BK_rate}}</div>
-                            <div class="rack-badge">📍 ${{r.BK_row}}</div>
-                        </div>
-                    </div>
-                    <div class="book-name">${{r.BK_name}}</div>
-                </div>
-                `;
-            }});
-            
-            if (currentResults.length > displayLimit) {{
-                html += `<button class="show-more-btn" onclick="increaseLimit()">🔽 Show More Results</button>`;
-            }}
-            
-            resultsArea.innerHTML = html;
-        }}
-
-        window.increaseLimit = () => {{
-            displayLimit += 50;
-            renderCards();
-        }};
-
-        function performSearch(query, mode, exactId = null) {{
-            displayLimit = 50;
-            dropdown.style.display = 'none';
-            
-            if (!query.trim()) {{
-                currentResults = [];
-                resultsArea.innerHTML = `
-                    <div class="info-card">
-                        <h4>💡 Welcome to RACK Search!</h4>
-                        <p>Simply start typing in the box above to find books by <b>Tag Number</b>, <b>Name</b>, <b>Rack Location</b>, or even <b>Price</b>.</p>
-                    </div>
-                `;
-                return;
-            }}
-
-            if (mode === 'single' && exactId) {{
-                currentResults = allData.filter(item => String(item.BK_Number) === String(exactId));
-                input.value = currentResults[0]?.BK_name || query;
-            }} else {{
-                const qn = query.toLowerCase().trim();
-                currentResults = allData.filter(item => item._search.includes(qn));
-            }}
-            
-            renderCards();
-        }}
-
-        input.oninput = (e) => {{
-            const val = e.target.value.trim().toLowerCase();
-            const originalVal = e.target.value;
-            
-            if (!val) {{
-                dropdown.style.display = 'none';
-                performSearch('', 'all');
-                return;
-            }}
-            
-            const matches = allData.filter(item => item._search.includes(val)).slice(0, 7);
-            
-            let html = `<div class="dropdown-item all-btn" onclick="performSearch('${{originalVal.replace(/'/g, "\\'")}}', 'all')">🔍 Show all matching "${{originalVal}}"</div>`;
-            matches.forEach(m => {{
-                html += `<div class="dropdown-item" onclick="performSearch('${{m.BK_name.replace(/'/g, "\\'")}}', 'single', '${{m.BK_Number}}')">� ${{m.BK_name}} (#${{m.BK_Number}})</div>`;
-            }});
-            
-            dropdown.innerHTML = html;
-            dropdown.style.display = 'block';
-        }};
-
-        // Close dropdown when clicking outside
-        document.addEventListener('click', (e) => {{
-            if (!e.target.closest('#search-container')) {{
-                dropdown.style.display = 'none';
-            }}
-        }});
-
-        // Enter key support
-        input.onkeypress = (e) => {{
-            if (e.key === 'Enter') {{
-                performSearch(input.value, 'all');
-            }}
-        }};
-    </script>
-    """
-    
-    st.markdown("### 🔎 Search Books")
-    # Set height large enough for results, but disable internal scrollbar for "integrated" feel
-    components.html(html_code, height=1800, scrolling=False)
