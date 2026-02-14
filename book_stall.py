@@ -128,6 +128,32 @@ st.markdown(
       .muted { opacity: 0.8; font-size: 0.95rem; }
       .tiny { opacity: 0.75; font-size: 0.85rem; }
       .rowline { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+      .dropdown-container {
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 12px;
+        background: rgba(25,25,25,0.95);
+        padding: 5px;
+        margin-top: -10px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        z-index: 1000;
+      }
+      .dropdown-item {
+        padding: 10px 15px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.2s;
+        border: 1px solid transparent;
+        text-align: left;
+        width: 100%;
+        display: block;
+        color: white;
+        text-decoration: none;
+      }
+      .dropdown-item:hover {
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.2);
+      }
       .btn-row { display:flex; justify-content:flex-end; }
     </style>
     """,
