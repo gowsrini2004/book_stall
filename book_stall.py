@@ -554,7 +554,8 @@ def render_search_interface(df: pd.DataFrame):
         .animate-spin { animation: spin 1s linear infinite; }
 
         .book-name {
-            font-size: 1.6rem;
+// ... existing CSS ...
+            font-size: 1rem;
             font-weight: 700;
             line-height: 1.4;
             color: #ffffff;
