@@ -193,18 +193,21 @@ st.markdown(
 # ---------------------------
 # Compact Header (Navigation & Admin)
 # ---------------------------
-h_left, h_right = st.columns([7, 3])
+h_left, h_right = st.columns([8, 2])
 
 with h_left:
-    st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
-    # Sub-columns to keep title and gear button tightly together
-    c1, c2 = st.columns([0.85, 0.15])
-    with c1:
-        st.markdown("## 📚 RACK Search")
-    with c2:
-        if not st.session_state.is_admin:
-            st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
-            if st.button("⚙️", key="admin_btn"):
+    # Use HTML Flexbox to FORCE gear icon next to text on all screen sizes (mobile fix)
+    gear_html = ""
+    if not st.session_state.is_admin:
+        # We'll use a hidden button trick or just wrap the title/button in one line if possible
+        # However, to maintain streamlit button functionality, we use a single row of columns with a fixed width ratio
+        st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+        # 3 columns: Title, Gear, Spacer
+        t1, t2, t3 = st.columns([0.7, 0.15, 0.15])
+        with t1:
+            st.markdown("<h2 style='margin:0; padding:0; white-space:nowrap;'>📚 RACK Search</h2>", unsafe_allow_html=True)
+        with t2:
+            if st.button("⚙️", key="admin_btn_flex"):
                 st.session_state.show_admin_login = True
                 st.rerun()
 
