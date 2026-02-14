@@ -26,10 +26,9 @@ def load_config():
 def save_config(cfg: dict):
     CONFIG_PATH.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
 
-def extract_sheet_id(url: str) -> str:
-    if not url: return ""
-    match = re.search(r"/spreadsheets/d/([a-zA-Z0-9-_]+)", str(url))
-    return match.group(1) if match else ""
+def extract_sheet_id(url: str):
+    match = re.search(r"/d/([a-zA-Z0-9-_]+)", url or "")
+    return match.group(1) if match else None
 
 
 # ---------------------------
@@ -129,24 +128,6 @@ st.markdown(
       .muted { opacity: 0.8; font-size: 0.95rem; }
       .tiny { opacity: 0.75; font-size: 0.85rem; }
       .rowline { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; }
-      
-      /* Seamless Dropdown UI */
-      .stTextInput > div > div > input {
-        border-bottom-left-radius: 0px !important;
-        border-bottom-right-radius: 0px !important;
-      }
-      .dropdown-container {
-        border: 1px solid rgba(255,255,255,0.1);
-        border-top: none;
-        border-bottom-left-radius: 12px;
-        border-bottom-right-radius: 12px;
-        background: rgba(30,30,30,0.98);
-        padding: 4px;
-        margin-top: -1px;
-        margin-bottom: 20px;
-        box-shadow: 0 8px 20px rgba(0,0,0,0.4);
-        z-index: 1000;
-      }
       .btn-row { display:flex; justify-content:flex-end; }
     </style>
     """,
@@ -253,25 +234,26 @@ if st.session_state.is_admin:
         if load_error:
             st.error(f"Could not load sheet: {load_error}")
         else:
-            sheet_cols = df_raw.columns.tolist() if df_raw is not None else []
-            options = ["None"] + [str(c) for c in sheet_cols]
+            st.success("✅ Sheet columns detected")
+            sheet_cols = df_raw.columns.tolist()
 
             st.markdown("### Map Columns")
             st.caption("Pick which sheet columns match the app fields.")
 
             current = cfg.get("mapping", {})
-            if not isinstance(current, dict): current = {}
-            
+            options = [""] + sheet_cols
+
             new_mapping = {}
-            for field in APP_FIELDS:
-                label = field.replace("BK_", "").capitalize()
-                val = current.get(field, "None")
-                new_mapping[field] = st.selectbox(
-                    f"Column for {label}",
-                    options=options,
-                    index=options.index(val) if val in options else 0,
-                    key=f"setup_{field}"
-                )
+            new_mapping["BK_Number"] = st.selectbox(
+                "App field: BK_Number (Book Number)",
+                options=options,
+                index=options.index(current.get("BK_Number", "")) if current.get("BK_Number", "") in options else 0,
+            )
+            new_mapping["BK_name"] = st.selectbox(
+                "App field: BK_name (Book Name)",
+                options=options,
+                index=options.index(current.get("BK_name", "")) if current.get("BK_name", "") in options else 0,
+            )
             new_mapping["BK_rate"] = st.selectbox(
                 "App field: BK_rate (Book Rate / Price)",
                 options=options,
@@ -328,76 +310,44 @@ else:
 
     # Big search box
     st.markdown('<div class="big-search">', unsafe_allow_html=True)
-    
-    if "search_query" not in st.session_state:
-        st.session_state.search_query = ""
-
-    # Primary text search bar
-    query_input = st.text_input(
+    query = st.text_input(
         "Search",
-        value=st.session_state.search_query,
         placeholder="Start Typing to Search",
         label_visibility="collapsed",
-        key="main_search_input"
     )
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # --- Filtering and Suggestions ---
-    def smart_filter(data: pd.DataFrame, q: str, is_exact: bool = False) -> pd.DataFrame:
-        if not q or not q.strip():
-            return data.iloc[0:0]
+    # Reset pagination if query changes
+    if "last_query" not in st.session_state:
+        st.session_state.last_query = ""
+    if query != st.session_state.last_query:
+        st.session_state.num_results = 50
+        st.session_state.last_query = query
 
-        qn = q.lower().strip()
-        if is_exact:
-            # Match specific book number
-            return data[data["BK_Number"].astype(str).str.lower() == qn]
-        
-        # Broad Search: match across combined blob (number+name+rack)
+    # --- Filtering ---
+    def smart_filter(data: pd.DataFrame, q: str) -> pd.DataFrame:
+        if not q or not q.strip():
+            return data.copy()
+
+        qn = " ".join(q.lower().strip().split())
+        # Auto: match across combined blob (number+name+rack)
         return data[data["_search"].str.contains(qn, na=False)]
 
-    # Initial broad matches for the typed word
-    broad_matches = smart_filter(df, query_input)
-    total_broad = len(broad_matches)
-    
-    final_query = query_input
-    suggestion_mode = False
-
-    if query_input.strip() and total_broad > 0:
-        # Generate suggestions: "Show all" + top 7 specific books
-        show_all_label = f"✨ Show all results for '{query_input}'"
-        book_options = [
-            f"#{r['BK_Number']} - {r['BK_name']} | 📍 {r['BK_row']}" 
-            for _, r in broad_matches.head(7).iterrows()
-        ]
-        
-        all_options = [show_all_label] + book_options
-        
-        selected = st.selectbox(
-            "Quick Suggestions",
-            options=all_options,
-            index=0,  # Default to "Show all"
-            key="suggestions_dropdown"
-        )
-        
-        if selected != show_all_label:
-            # User picked a specific book
-            final_query = selected.split(" - ")[0].replace("#", "")
-            suggestion_mode = True
-
-    # Get the actual results to display as cards
-    all_results = smart_filter(df, final_query, is_exact=suggestion_mode)
+    all_results = smart_filter(df, query)
     total_found = len(all_results)
     
     # Slice for pagination
     results = all_results.head(st.session_state.num_results)
 
-    if query_input.strip():
-        st.markdown(f"**Results:** {len(results)} of {total_found}")
+    st.markdown(f"**Results:** {len(results)} of {total_found}")
 
-    # --- Mobile cards ---
-    if st.session_state.search_query.strip() and total_found == 0:
-        st.warning("No matches found.")
-    elif st.session_state.search_query.strip():
+    # --- Mobile cards with bright rack ---
+    if total_found == 0:
+        if query.strip():
+            st.warning("No matches found.")
+        else:
+            st.info("No data available in the sheet.")
+    else:
         for _, r in results.iterrows():
             st.markdown(
                 f"""
@@ -420,7 +370,9 @@ else:
             if st.button("🔽 Show More", use_container_width=True):
                 st.session_state.num_results += 50
                 st.rerun()
-        
-        if total_found == 1:
+
+        if total_found == 0 and query.strip():
+            st.warning("No matches found.")
+        elif total_found == 1:
             one = results.iloc[0]
             st.success(f"✅ Location: **{one['BK_row']}**  |  Rate: **₹ {one['BK_rate']}**")
