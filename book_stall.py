@@ -53,6 +53,7 @@ def fetch_sheet_df(sheet_id: str, sheet_name: str) -> pd.DataFrame:
 
 def apply_mapping(df: pd.DataFrame, mapping: dict) -> pd.DataFrame:
     # mapping: { "BK_Number": "BK_No", "BK_name": "BK_Name", "BK_row": "BK_Rack" }
+    mapping = mapping or {}
     missing = [k for k in APP_FIELDS if k not in mapping or not mapping[k]]
     if missing:
         raise ValueError(f"Mapping not set for: {missing}")
@@ -336,74 +337,108 @@ else:
         #search-container {{
             position: relative;
             width: 100%;
-            height: 48px;
-            z-index: 1000;
+            height: 100%;
+            z-index: 9999;
+        }}
+        .search-wrapper {{
+            position: relative;
+            z-index: 10001;
         }}
         #search-input {{
             width: 100%;
-            padding: 12px 16px;
+            padding: 14px 18px;
             font-size: 1.15rem;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 12px;
+            background: rgba(40, 44, 52, 0.9);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
             color: white;
             outline: none;
             box-sizing: border-box;
-            transition: all 0.2s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }}
         #search-input:focus {{
             border-color: #00c2ff;
-            background: rgba(255, 255, 255, 0.08);
-            box-shadow: 0 0 10px rgba(0, 194, 255, 0.2);
+            background: rgba(40, 44, 52, 0.98);
+            box-shadow: 0 0 15px rgba(0, 194, 255, 0.3);
         }}
         #dropdown {{
             position: absolute;
-            top: 55px;
+            top: 62px;
             left: 0;
             right: 0;
-            background: #1e1e1e;
+            background: rgba(30, 34, 42, 0.95);
+            backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            border-radius: 14px;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.6);
             display: none;
-            max-height: 320px;
+            max-height: 280px;
             overflow-y: auto;
-            z-index: 1001;
+            z-index: 10002;
+            padding: 6px 0;
+        }}
+        /* Tooltip-like arrow */
+        #dropdown::before {{
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: 24px;
+            width: 12px;
+            height: 12px;
+            background: rgba(30, 34, 42, 0.95);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            transform: rotate(45deg);
         }}
         .item {{
-            padding: 12px 16px;
+            padding: 12px 18px;
             cursor: pointer;
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
             font-size: 1rem;
-            transition: background 0.2s;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }}
         .item:last-child {{ border-bottom: none; }}
         .item:hover {{
-            background: rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.1);
+            padding-left: 22px;
         }}
         .item.all {{
             color: #00c2ff;
-            font-weight: 600;
-            background: rgba(0, 194, 255, 0.05);
+            font-weight: 700;
+            background: rgba(0, 194, 255, 0.08);
+            border-bottom: 2px solid rgba(0, 194, 255, 0.2);
         }}
         .info-box {{
-            margin-top: 15px;
-            padding: 15px;
-            background: rgba(0, 194, 255, 0.05);
-            border: 1px solid rgba(0, 194, 255, 0.15);
-            border-radius: 12px;
+            margin-top: 20px;
+            padding: 18px;
+            background: rgba(0, 194, 255, 0.04);
+            border: 1px solid rgba(0, 194, 255, 0.12);
+            border-radius: 16px;
             font-size: 0.95rem;
-            color: rgba(255, 255, 255, 0.9);
-            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.85);
+            line-height: 1.6;
+            animation: fadeIn 0.5s ease-out;
         }}
+        @keyframes fadeIn {{
+            from {{ opacity: 0; transform: translateY(5px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
+        ::-webkit-scrollbar {{ width: 6px; }}
+        ::-webkit-scrollbar-thumb {{ background: rgba(255,255,255,0.1); border-radius: 10px; }}
     </style>
 
     <div id="search-container">
-        <input type="text" id="search-input" placeholder="Start Typing to Search..." autocomplete="off">
-        <div id="dropdown"></div>
+        <div class="search-wrapper">
+            <input type="text" id="search-input" placeholder="Start Typing to Search..." autocomplete="off">
+            <div id="dropdown"></div>
+        </div>
         <div id="info" class="info-box">
             💡 <b>Welcome to RACK Search!</b><br>
-            Start typing to find books by <b>Tag Number</b>, <b>Name</b>, <b>Location</b>, or <b>Price</b>.
+            Quickly find books by typing their <b>Tag #</b>, <b>Name</b>, or <b>Price</b>.
         </div>
     </div>
 
@@ -413,37 +448,38 @@ else:
         const dropdown = document.getElementById('dropdown');
         const info = document.getElementById('info');
 
-        // Set initial value from URL
+        // Initial sync
         const urlParams = new URLSearchParams(window.parent.location.search);
-        if (urlParams.has('q')) {{
+        if (urlParams.has('q') && urlParams.get('q')) {{
             input.value = urlParams.get('q');
             info.style.display = 'none';
         }}
 
         input.oninput = (e) => {{
             const val = e.target.value.trim().toLowerCase();
-            const originalVal = e.target.value;
+            const originalVal = e.target.value.trim();
+            
             if (!val) {{
                 dropdown.style.display = 'none';
                 info.style.display = 'block';
                 return;
             }}
-            info.style.display = 'none';
             
+            info.style.display = 'none';
             const matches = data.filter(item => item._search.includes(val)).slice(0, 7);
             
-            let html = `<div class="item all" data-val="${{originalVal}}" data-mode="all">🔍 Show all matching "${{originalVal}}"</div>`;
+            let html = '<div class="item all" data-val="' + originalVal + '" data-mode="all">🔍 Show all matching "' + originalVal + '"</div>';
             matches.forEach(m => {{
-                html += `<div class="item" data-val="${{m.BK_Number}}" data-mode="single">📖 ${{m.BK_name}} (#${{m.BK_Number}})</div>`;
+                html += '<div class="item" data-val="' + m.BK_Number + '" data-mode="single">📖 ' + m.BK_name + ' (#' + m.BK_Number + ')</div>';
             }});
             
             dropdown.innerHTML = html;
             dropdown.style.display = 'block';
 
-            // Add click listeners to items
-            document.querySelectorAll('.item').forEach(item => {{
-                item.onclick = () => {{
-                    selectItem(item.getAttribute('data-val'), item.getAttribute('data-mode'));
+            // Click handling
+            document.querySelectorAll('.item').forEach(el => {{
+                el.onclick = () => {{
+                    selectItem(el.getAttribute('data-val'), el.getAttribute('data-mode'));
                 }};
             }});
         }};
@@ -455,7 +491,6 @@ else:
             window.parent.location.href = url.href;
         }}
         
-        // Close dropdown when clicking outside
         window.onclick = (e) => {{
             if (!e.target.matches('#search-input')) {{
                 dropdown.style.display = 'none';
