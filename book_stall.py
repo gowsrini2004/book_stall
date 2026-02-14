@@ -197,6 +197,7 @@ st.markdown(
 
 if st.session_state.is_admin:
     # Wide Logout button with icon + text
+    st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
     if st.button("🚪 Logout", key="logout_btn", use_container_width=True, type="secondary"):
         st.session_state.is_admin = False
         st.session_state.show_admin_login = False
