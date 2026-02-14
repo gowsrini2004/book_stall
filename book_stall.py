@@ -128,21 +128,6 @@ st.markdown(
       .muted { opacity: 0.8; font-size: 0.95rem; }
       .tiny { opacity: 0.75; font-size: 0.85rem; }
       .rowline { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; }
-      .suggestion-item {
-        background: rgba(255,255,255,0.05);
-        border: 1px solid rgba(255,255,255,0.1);
-        padding: 8px 12px;
-        margin-bottom: 4px;
-        border-radius: 8px;
-        cursor: pointer;
-        text-align: left;
-        width: 100%;
-        display: block;
-        transition: background 0.2s;
-      }
-      .suggestion-item:hover {
-        background: rgba(255,255,255,0.1);
-      }
       .btn-row { display:flex; justify-content:flex-end; }
     </style>
     """,
@@ -326,10 +311,10 @@ else:
     # Big search box
     st.markdown('<div class="big-search">', unsafe_allow_html=True)
     
-    # Use session state for the query to allow buttons to update it
     if "search_query" not in st.session_state:
         st.session_state.search_query = ""
 
+    # Primary text search
     query = st.text_input(
         "Search",
         value=st.session_state.search_query,
@@ -337,12 +322,8 @@ else:
         label_visibility="collapsed",
         key="main_search_input"
     )
-    # Sync back to session state
     st.session_state.search_query = query
     st.markdown("</div>", unsafe_allow_html=True)
-
-    # Convert selection to query for filtering
-    # (Previously selectbox logic, now handled by chips below)
 
     # Reset pagination if query changes
     if "last_query" not in st.session_state:
@@ -363,16 +344,25 @@ else:
     all_results = smart_filter(df, query)
     total_found = len(all_results)
     
-    # --- Quick Suggestions (Vertical "Dropdown" beneath search) ---
+    # --- Dropdown Suggestions (Top 7) ---
     if query.strip() and total_found > 1:
-        st.caption("Suggestions:")
         top_7 = all_results.head(7)
-        for i, (_, r) in enumerate(top_7.iterrows()):
-            # Using a button that looks like a list item
-            label = f"#{r['BK_Number']} - {r['BK_name']} | 📍 {r['BK_row']}"
-            if st.button(label, key=f"sugg_{i}", use_container_width=True):
-                st.session_state.search_query = str(r['BK_Number'])
-                st.rerun()
+        # Format for selectbox
+        options = [f"#{r['BK_Number']} - {r['BK_name']} | 📍 {r['BK_row']}" for _, r in top_7.iterrows()]
+        
+        selected = st.selectbox(
+            "Quick Picks (Top 7)",
+            options=options,
+            index=None,
+            placeholder="Select a book for quick detail...",
+            key="quick_dropdown"
+        )
+        
+        if selected:
+            # Extract book number from the selected string "#{BK_Number} - ..."
+            selected_bk = selected.split(" - ")[0].replace("#", "")
+            st.session_state.search_query = selected_bk
+            st.rerun()
         st.divider()
 
     # Slice for pagination
