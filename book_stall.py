@@ -353,13 +353,13 @@ else:
                 f"""
                 <div class="result-card">
                   <div class="rowline">
-                    <div class="tag-badge">#{r['BK_Number']} <span style="font-size: 0.75rem; opacity: 0.8; font-weight: 400; margin-left: 2px;">Tag</span></div>
+                    <div class="tag-badge">#{r['BK_Number']}<span style="font-size: 0.75rem; opacity: 0.8; font-weight: 400; margin-left: 2px;"></span></div>
                     <div style="display:flex; gap:8px;">
                         <div class="rate-badge">₹ {r['BK_rate']}</div>
                         <div class="rack-badge">📍 {r['BK_row']}</div>
                     </div>
                   </div>
-                  <div style="margin-top:12px; font-size:1.1rem; font-weight: 600;">{r['BK_name']}</div>
+                  <div style="margin-top:16px; font-size:1.4rem; font-weight: 700; line-height: 1.3;">{r['BK_name']}</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
