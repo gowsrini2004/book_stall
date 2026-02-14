@@ -386,26 +386,27 @@ def render_search_interface(df: pd.DataFrame):
         .result-card {
             border: 1px solid rgba(255,255,255,0.12);
             border-radius: 20px;
-            padding: 24px 22px; 
-            margin-bottom: 25px; 
+            padding: 32px 28px; /* Extremely spacious to prevent cramped look */
+            margin-bottom: 35px; 
             background: rgba(255,255,255,0.03);
             animation: fadeIn 0.3s ease-out;
             transition: all 0.2s ease;
         }
         .result-card:hover { 
             background: rgba(255,255,255,0.05);
-            transform: translateY(-2px);
+            transform: translateY(-3px);
             border-color: rgba(255,255,255,0.2);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
+            from { opacity: 0; transform: translateY(15px); }
             to { opacity: 1; transform: translateY(0); }
         }
         .badge-row {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-bottom: 22px; /* More gap between top and bottom info */
+            gap: 15px;
+            margin-bottom: 28px; /* More gap for de-cramping */
         }
         .name-row {
             display: flex;
@@ -605,32 +606,34 @@ def render_search_interface(df: pd.DataFrame):
             margin-top: 10px;
             transition: background 0.2s;
         }
-        .show-more-btn:hover { background: rgba(255,255,255,0.1); }
+        #stall-search-root .show-more-btn:hover { background: rgba(255,255,255,0.1); }
     </style>
 
-    <div id="search-container">
-        <div style="position: relative;">
-            <input type="text" id="search-input" placeholder="Start Typing to Search..." autocomplete="off">
-            <button id="clear-btn" onclick="clearSearch()">✕</button>
-            <button id="search-btn" onclick="performSearch(document.getElementById('search-input').value, 'all')">
-                <svg style="width:18px; height:18px;" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"></path></svg>
-            </button>
+    <div id="stall-search-root">
+        <div id="search-container">
+            <div style="position: relative;">
+                <input type="text" id="search-input" placeholder="Start Typing to Search..." autocomplete="off">
+                <button id="clear-btn" onclick="clearSearch()">✕</button>
+                <button id="search-btn" onclick="performSearch(document.getElementById('search-input').value, 'all')">
+                    <svg style="width:18px; height:18px;" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"></path></svg>
+                </button>
+            </div>
+            <div id="dropdown"></div>
         </div>
-        <div id="dropdown"></div>
-    </div>
 
-    <!-- Details Modal -->
-    <div id="modal-overlay" onclick="closeModal(event)">
-        <div id="modal-content" onclick="event.stopPropagation()">
-            <button id="modal-close" onclick="closeModal()">✕</button>
-            <div id="modal-body"></div>
+        <!-- Details Modal -->
+        <div id="modal-overlay" onclick="closeModal(event)">
+            <div id="modal-content" onclick="event.stopPropagation()">
+                <button id="modal-close" onclick="closeModal()">✕</button>
+                <div id="modal-body"></div>
+            </div>
         </div>
-    </div>
 
-    <div id="results-area">
-        <div class="info-card">
-            <h4>💡 Welcome to RACK Search!</h4>
-            <p>Simply start typing in the box above to find books by <b>BK Number</b>, <b>Book Name</b>, <b>Rack Location</b>, or even <b>Book Price</b>.</p>
+        <div id="results-area">
+            <div class="info-card">
+                <h4>💡 Welcome to RACK Search!</h4>
+                <p>Simply start typing in the box above to find books by <b>BK Number</b>, <b>Book Name</b>, <b>Rack Location</b>, or even <b>Book Price</b>.</p>
+            </div>
         </div>
     </div>
 
@@ -764,26 +767,29 @@ def render_search_interface(df: pd.DataFrame):
             // Hidden Admin Portal Trigger
             if (qClean === 'admin_login') {
                 resultsArea.innerHTML = `
-                    <div style="padding: 25px 0; text-align: center;">
-                        <form action="./" target="_top" method="GET">
-                            <input type="hidden" name="login" value="admin">
-                            <button type="submit" style="
-                                border: none;
+                    <div class="result-card" style="border: 2.5px solid #00c2ff; background: rgba(0, 194, 255, 0.08);">
+                        <div class="badge-row">
+                            <div class="placeholder-badge"></div>
+                            <div class="placeholder-badge"></div>
+                            <div class="tag-badge" style="background:rgba(0,194,255,0.2); color:#00c2ff; border-color:#00c2ff;">SECURE PORTAL</div>
+                        </div>
+                        <div class="name-row">
+                            <div class="book-name" style="font-size: 1.2rem; color: #00c2ff;">Ready to access Admin Panel?</div>
+                        </div>
+                        <div style="margin-top:25px; text-align:center;">
+                            <a href="./?login=admin" target="_blank" style="
                                 display: block;
-                                width: 100%;
-                                padding: 22px;
+                                padding: 18px;
                                 background: #00c2ff;
                                 color: white;
+                                text-decoration: none;
                                 font-weight: 800;
-                                border-radius: 16px;
-                                box-shadow: 0 8px 25px rgba(0, 194, 255, 0.4);
-                                font-size: 1.2rem;
-                                cursor: pointer;
-                            ">
-                                🔐 CLICK TO OPEN ADMIN LOGIN
-                            </button>
-                        </form>
-                        <p style="margin-top:15px; opacity:0.6; font-size:0.9rem;">(Use this button to securely access the admin panel)</p>
+                                border-radius: 12px;
+                                font-size: 1.1rem;
+                                box-shadow: 0 4px 15px rgba(0, 194, 255, 0.4);
+                            ">🔑 OPEN LOGIN CONSOLE (New Tab)</a>
+                        </div>
+                        <p style="margin-top:15px; font-size:0.8rem; opacity:0.5; text-align:center;">Due to browser security, admin tools open in a new tab.</p>
                     </div>
                 `;
                 return;
@@ -863,7 +869,9 @@ def render_search_interface(df: pd.DataFrame):
     '''.replace("{{search_json}}", search_json)
 
     st.markdown("### 🔎 Search Books")
-    # 850px is a perfect height for most mobile/desktop views without clipping
+    # Using components.html with a fixed height to provide a reliable container
+    # st.markdown was stripping JS, causing the 'noting is happening' issue.
+    # To fix the sandbox error, we use window.open(..., '_blank') for the admin portal.
     components.html(html_code, height=850, scrolling=False)
 
 # ---------------------------
