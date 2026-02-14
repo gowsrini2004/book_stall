@@ -370,11 +370,11 @@ def render_search_interface(df: pd.DataFrame):
         #results-area::-webkit-scrollbar-thumb { background: rgba(0, 194, 255, 0.4); border-radius: 10px; }
         #results-area::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); border-radius: 10px; }
         .result-card {
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 12px;
-            padding: 14px;
-            margin-bottom: 12px;
-            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 16px;
+            padding: 18px;
+            margin-bottom: 20px;
+            background: rgba(255,255,255,0.03);
             animation: fadeIn 0.3s ease-out;
         }
         @keyframes fadeIn {
@@ -395,7 +395,7 @@ def render_search_interface(df: pd.DataFrame):
         }
         .placeholder-badge {
             background: transparent !important;
-            border: 1px dashed rgba(255,255,255,0.05) !important;
+            border: none !important;
             height: 34px;
         }
         .tag-badge, .rate-badge, .rack-badge, .img-btn {
