@@ -709,7 +709,7 @@ def render_search_interface(df: pd.DataFrame):
                 const slot3 = hasRack ? `<div class="rack-badge">📍${r.BK_row}</div>` : `<div class="placeholder-badge"></div>`;
                 
                 // Slot 5: Image Icon (Next to name)
-                const slot5 = hasImage ? `<div class="img-btn sm-icon" onclick="showDetails(${idx})">📷</div>` : `<div style="width:40px;"></div>`;
+                const slot5 = hasImage ? `<div class="img-btn sm-icon" onclick="showDetails(${idx})">📷</div>` : "";
 
                 html += `
                 <div class="result-card">
