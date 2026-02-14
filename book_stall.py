@@ -268,7 +268,8 @@ if st.session_state.is_admin:
                 cfg["mapping"] = new_mapping
                 save_config(cfg)
                 st.cache_data.clear()
-                st.success("✅ Saved! User search will use this mapping.")
+                st.success("✅ Saved locally!")
+                st.info("💡 **Tip:** To keep these settings permanently (even after rehosting), make sure to **commit and push** your changes to GitHub.")
 
 # ---------------------------
 # USER SEARCH (mobile-first)
