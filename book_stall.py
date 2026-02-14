@@ -381,47 +381,56 @@ def render_search_interface(df: pd.DataFrame):
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .rowline {
+        .badge-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+        .name-row {
             display: flex;
             justify-content: space-between;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-bottom: 16px;
+            align-items: center;
+            gap: 12px;
         }
-        .badge-group { display: flex; gap: 8px; flex-wrap: wrap; }
-        .tag-badge {
-            padding: 8px 12px;
-            border-radius: 12px;
-            font-weight: 800;
+        .sm-icon {
+            padding: 6px 10px;
             font-size: 1rem;
+            flex-shrink: 0;
+        }
+        .tag-badge {
+            padding: 6px 10px;
+            border-radius: 10px;
+            font-weight: 800;
+            font-size: 0.9rem;
             background: rgba(255, 193, 7, 0.15);
             border: 1px solid rgba(255, 193, 7, 0.3);
             color: #ffc107;
         }
         .rate-badge {
-            padding: 8px 12px;
-            border-radius: 12px;
+            padding: 6px 10px;
+            border-radius: 10px;
             font-weight: 700;
-            font-size: 1rem;
+            font-size: 0.9rem;
             background: rgba(0, 194, 255, 0.05);
             border: 1px solid rgba(0, 194, 255, 0.15);
             color: #00c2ff;
         }
         .rack-badge {
-            padding: 8px 12px;
-            border-radius: 12px;
+            padding: 6px 10px;
+            border-radius: 10px;
             font-weight: 800;
-            font-size: 1rem;
-            background: rgba(0, 194, 255, 0.15);
-            border: 1px solid rgba(0, 194, 255, 0.3);
+            font-size: 0.9rem;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
             color: #ffffff;
             display: flex;
             align-items: center;
             gap: 4px;
         }
         .img-btn {
-            padding: 8px 12px;
-            border-radius: 12px;
+            padding: 6px 10px;
+            border-radius: 10px;
             background: rgba(255, 255, 255, 0.08);
             border: 1px solid rgba(255, 255, 255, 0.15);
             color: #ffffff;
@@ -430,7 +439,7 @@ def render_search_interface(df: pd.DataFrame):
             align-items: center;
             justify-content: center;
             transition: all 0.2s;
-            font-size: 1.1rem;
+            font-size: 1rem;
         }
         .img-btn:hover {
             background: rgba(0, 194, 255, 0.2);
@@ -677,23 +686,40 @@ def render_search_interface(df: pd.DataFrame):
             
             toShow.forEach((r, idx) => {
                 const hasImage = r.BK_image && r.BK_image.trim().length > 5;
-                const imgBtnHtml = hasImage ? `<div class="img-btn" onclick="showDetails(${idx})">📷</div>` : '';
                 const hasRate = r.BK_rate && r.BK_rate.trim() !== "";
-                const rateBadgeHtml = hasRate ? `<div class="rate-badge">₹ ${r.BK_rate}</div>` : '';
+                
+                let topBadges = [];
+                let nameIconHtml = '';
+                
+                // Rule 1: Always BK Number
+                topBadges.push(`<div class="tag-badge">#${r.BK_Number}</div>`);
+                
+                if (hasRate) {
+                    // Smart Rule: Priority BK, Rate, Rack (3 boxes)
+                    topBadges.push(`<div class="rate-badge">₹ ${r.BK_rate}</div>`);
+                    topBadges.push(`<div class="rack-badge">📍 ${r.BK_row}</div>`);
+                    
+                    // If everything exists, image icon moves to name row
+                    if (hasImage) {
+                        nameIconHtml = `<div class="img-btn sm-icon" onclick="showDetails(${idx})">📷</div>`;
+                    }
+                } else {
+                    // Smart Rule: If rate is missing, show BK, Rack, and Image (3 boxes)
+                    topBadges.push(`<div class="rack-badge">📍 ${r.BK_row}</div>`);
+                    if (hasImage) {
+                        topBadges.push(`<div class="img-btn" onclick="showDetails(${idx})">📷</div>`);
+                    }
+                }
 
                 html += `
                 <div class="result-card">
-                    <div class="rowline">
-                        <div class="badge-group">
-                            <div class="tag-badge">#${r.BK_Number}</div>
-                            ${rateBadgeHtml}
-                            ${imgBtnHtml}
-                        </div>
-                        <div class="rack-badge">
-                            📍 ${r.BK_row}
-                        </div>
+                    <div class="badge-row">
+                        ${topBadges.join('')}
                     </div>
-                    <div class="book-name">${r.BK_name}</div>
+                    <div class="name-row">
+                        <div class="book-name">${r.BK_name}</div>
+                        ${nameIconHtml}
+                    </div>
                 </div>
                 `;
             });
