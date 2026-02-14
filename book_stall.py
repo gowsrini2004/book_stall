@@ -500,7 +500,7 @@ else:
     """
     
     st.markdown("### 🔎 Search Books")
-    components.html(html_code, height=350)
+    components.html(html_code, height=550)
 
     # --- Filtering logic ---
     query = url_q
