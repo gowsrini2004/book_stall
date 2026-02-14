@@ -362,13 +362,13 @@ def render_search_interface(df: pd.DataFrame):
             margin-top: 5px;
             height: 650px; /* Fixed height for internal scrolling */
             overflow-y: auto;
-            padding-right: 8px;
-            padding-bottom: 50px;
+            padding: 0 10px 100px 10px; /* Equal padding on both sides */
+            scrollbar-gutter: stable; /* Reserves space so content doesn't jump */
         }
         /* Sleek scrollbar for results */
-        #results-area::-webkit-scrollbar { width: 5px; }
-        #results-area::-webkit-scrollbar-thumb { background: rgba(0, 194, 255, 0.3); border-radius: 10px; }
-        #results-area::-webkit-scrollbar-track { background: transparent; }
+        #results-area::-webkit-scrollbar { width: 6px; }
+        #results-area::-webkit-scrollbar-thumb { background: rgba(0, 194, 255, 0.4); border-radius: 10px; }
+        #results-area::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); border-radius: 10px; }
         .result-card {
             border: 1px solid rgba(255,255,255,0.1);
             border-radius: 12px;
