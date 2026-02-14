@@ -689,7 +689,7 @@ def render_search_interface(df: pd.DataFrame):
                 const hasRack = r.BK_row && r.BK_row.trim() !== "";
                 
                 // Slot 1: BK Number (Always present)
-                const slot1 = `<div class="tag-badge">#${r.BK_Number}</div>`;
+                const slot1 = `<div class="tag-badge"># ${r.BK_Number}</div>`;
                 
                 // Slot 2: Rate (Or placeholder)
                 const slot2 = hasRate ? `<div class="rate-badge">₹${r.BK_rate}</div>` : `<div class="placeholder-badge"></div>`;
