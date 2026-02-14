@@ -687,6 +687,13 @@ if st.session_state.is_admin:
 
     with tabs[0]:
         st.subheader("Dynamic Column Mapping")
+        
+        # Refresh button to bypass 1-hour cache
+        if st.button("🔄 Refresh Sheet Data", use_container_width=True):
+            st.cache_data.clear()
+            st.success("Refreshed! Loading latest data...")
+            st.rerun()
+
         st.caption(f"Connected to Sheet: {s_name}")
 
         if load_error:
