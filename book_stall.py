@@ -9,6 +9,13 @@ st.set_page_config(page_title="BK Search Pro", layout="centered")  # better for 
 CONFIG_PATH = Path("config.json")
 ADMIN_PASSWORD = "mother"
 
+# Handle hidden admin trigger from URL
+if "login" in st.query_params:
+    st.session_state.show_admin_login = True
+    # Clear parameter without full reload if possible, but st.rerun is safer to ensure state sync
+    st.query_params.clear()
+    st.rerun()
+
 APP_FIELDS = ["BK_Number", "BK_name", "BK_rate", "BK_row", "BK_image"]  # standard names inside the app
 
 
@@ -190,57 +197,46 @@ st.markdown(
 # Compact Header (Admin small button)
 # ---------------------------
 
-# ---------------------------
-# Compact Header (Navigation & Admin)
-# ---------------------------
 h_left, h_right = st.columns([8, 2])
 
 with h_left:
-    # Use HTML Flexbox to FORCE gear icon next to text on all screen sizes (mobile fix)
-    gear_html = ""
-    if not st.session_state.is_admin:
-        # We'll use a hidden button trick or just wrap the title/button in one line if possible
-        # However, to maintain streamlit button functionality, we use a single row of columns with a fixed width ratio
-        st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
-        # 3 columns: Title, Gear, Spacer
-        t1, t2, t3 = st.columns([0.7, 0.15, 0.15])
-        with t1:
-            st.markdown("<h2 style='margin:0; padding:0; white-space:nowrap;'>📚 RACK Search</h2>", unsafe_allow_html=True)
-        with t2:
-            if st.button("⚙️", key="admin_btn_flex"):
-                st.session_state.show_admin_login = True
-                st.rerun()
+    st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+    st.markdown("## 📚 RACK Search")
 
 with h_right:
     st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
     if st.session_state.is_admin:
+        # Wide Logout button with icon + text
         if st.button("🚪 Logout", key="logout_btn", use_container_width=True, type="secondary"):
             st.session_state.is_admin = False
             st.session_state.show_admin_login = False
             st.rerun()
 
-
 # ---------------------------
-# Admin login
+# Admin login (Full Screen when active)
 # ---------------------------
 if st.session_state.show_admin_login and not st.session_state.is_admin:
+    st.markdown("<div style='height:100px'></div>", unsafe_allow_html=True)
     with st.container(border=True):
-        st.subheader("Admin Login")
-        pwd = st.text_input("Password", type="password", placeholder="password")
-        c1, c2 = st.columns(2)
+        st.subheader("🔐 Admin Access Required")
+        pwd = st.text_input("Enter Admin Password", type="password", placeholder="Password...")
+        
+        # Inline buttons
+        c1, c2 = st.columns([1, 1])
         with c1:
-            if st.button("Login", type="primary"):
+            if st.button("Login", type="primary", use_container_width=True):
                 if pwd == ADMIN_PASSWORD:
                     st.session_state.is_admin = True
                     st.session_state.show_admin_login = False
                     st.success("✅ Admin access granted")
                     st.rerun()
                 else:
-                    st.error("❌ Wrong password")
+                    st.error("❌ Invalid password")
         with c2:
-            if st.button("Cancel"):
+            if st.button("Cancel", use_container_width=True):
                 st.session_state.show_admin_login = False
                 st.rerun()
+    st.stop() # Prevents showing the search UI below
 
 
 # ---------------------------
@@ -745,6 +741,26 @@ def render_search_interface(df: pd.DataFrame):
             displayLimit = 50;
             dropdown.style.display = 'none';
             
+            const qClean = query.trim().toLowerCase();
+            
+            // Hidden Admin Portal Trigger
+            if (qClean === 'admin_login') {
+                resultsArea.innerHTML = `
+                    <div class="result-card" onclick="window.parent.location.href='?login=admin'" style="cursor:pointer; border: 2px solid #00c2ff; background: rgba(0, 194, 255, 0.05);">
+                        <div class="badge-row">
+                            <div class="tag-badge" style="background:rgba(0,194,255,0.1); color:#00c2ff; border-color:#00c2ff;">ADMIN PORTAL</div>
+                            <div class="placeholder-badge"></div>
+                            <div class="placeholder-badge"></div>
+                        </div>
+                        <div class="name-row">
+                            <div class="book-name">Click here to access Admin Login</div>
+                            <div class="img-btn sm-icon" style="background:#00c2ff; border-color:#00c2ff; color:white;">⚙️</div>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            
             if (!query.trim()) {
                 currentResults = [];
                 resultsArea.innerHTML = `
@@ -776,6 +792,12 @@ def render_search_interface(df: pd.DataFrame):
             if (!val) {
                 dropdown.style.display = 'none';
                 performSearch('', 'all');
+                return;
+            }
+            
+            // Don't show admin_login in dropdown
+            if (val === 'admin_login') {
+                dropdown.style.display = 'none';
                 return;
             }
             
