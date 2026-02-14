@@ -767,10 +767,8 @@ def render_search_interface(df: pd.DataFrame):
             // Hidden Admin Portal Trigger
             if (qClean === 'admin_login') {
                 resultsArea.innerHTML = `
-                    <div class="result-card" style="text-align: center; cursor: pointer; border: 1.5px solid #00c2ff;" 
-                         onclick="window.open('./?login=admin', '_blank'); setTimeout(() => { resultsArea.innerHTML = '<div style=\'padding:40px; text-align:center; color:#00c2ff; font-weight:800;\'>REDIRECTING...<br><br><span style=\'font-weight:400; font-size:0.9rem; opacity:0.7;\'>You can close this tab now. The admin panel opened in a new window.</span></div>'; window.close(); }, 500);">
-                        <div class="book-name" style="font-size: 1.3rem; color: #00c2ff;">Go to Admin Portal 🔐</div>
-                        <p style="margin-top:10px; font-size:0.8rem; opacity:0.6;">(Click to move to a new secure tab)</p>
+                    <div class="result-card" style="text-align: center; cursor: pointer;" onclick="window.open('./?login=admin', '_blank')">
+                        <div class="book-name" style="font-size: 1.3rem;">Go to Admin Portal 🔐</div>
                     </div>
                 `;
                 return;
@@ -936,7 +934,7 @@ if st.session_state.is_admin:
             st.caption("Preview:")
             try:
                 mapped_preview = apply_mapping(df_raw, new_mapping)
-                st.dataframe(mapped_preview[APP_FIELDS], width="stretch", height=250)
+                st.dataframe(mapped_preview[APP_FIELDS], use_container_width=True, height=250)
             except Exception as e:
                 st.info(f"Preview not ready: {e}")
 
@@ -957,12 +955,12 @@ if st.session_state.is_admin:
             st.info("Share sheet as: Anyone with link → Viewer")
         else:
             st.success("✅ Sheet loaded")
-            st.dataframe(df_raw, width="stretch", height=420)
+            st.dataframe(df_raw, use_container_width=True, height=420)
 
             st.caption("Mapped preview (what the app uses):")
             try:
                 mapped = apply_mapping(df_raw, cfg.get("mapping", {}))
-                st.dataframe(mapped[APP_FIELDS], width="stretch", height=250)
+                st.dataframe(mapped[APP_FIELDS], use_container_width=True, height=250)
             except Exception as e:
                 st.warning(f"Mapping not ready: {e}")
 
