@@ -408,28 +408,31 @@ def render_search_interface(df: pd.DataFrame):
         
         /* Modal - Professional Popup */
         #modal-overlay {
-            position: fixed;
+            position: absolute; /* Relative to the search component */
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: transparent;
+            background: rgba(0,0,0,0.6); /* Re-adding a bit of contrast for mobile visibility */
+            backdrop-filter: blur(4px);
             display: none;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start; /* Ensure it shows at the top */
             z-index: 9999;
-            padding: 20px;
+            padding: 10px;
+            padding-top: 40px; /* Offset from the top of the view */
+            box-sizing: border-box;
         }
         #modal-content {
             background: #1a1a1a;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            border-radius: 24px;
-            max-width: 500px;
-            width: 100%;
+            border: 2px solid rgba(0, 194, 255, 0.4);
+            border-radius: 20px;
+            max-width: 95%; /* Better for phones */
+            width: 450px;
             position: relative;
-            padding: 24px;
-            box-shadow: 0 40px 100px rgba(0,0,0,0.9), 0 0 40px rgba(0, 194, 255, 0.1);
-            animation: modalIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            padding: 20px;
+            box-shadow: 0 10px 50px rgba(0,0,0,0.8);
+            animation: modalIn 0.3s ease-out;
         }
         @keyframes modalIn {
             from { opacity: 0; transform: scale(0.9) translateY(20px); }
@@ -477,11 +480,11 @@ def render_search_interface(df: pd.DataFrame):
             opacity: 0;
             transition: opacity 0.3s;
         }
-        .modal-title { font-size: 1.5rem; font-weight: 800; color: #00c2ff; margin-bottom: 20px; padding-right: 40px; }
-        .modal-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-        .m-item { background: rgba(255,255,255,0.04); padding: 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); text-align: center; }
-        .m-label { font-size: 0.65rem; color: #aaa; text-transform: uppercase; font-weight: 800; margin-bottom: 4px; }
-        .m-val { font-size: 0.95rem; font-weight: 700; color: #fff; }
+        .modal-title { font-size: 1.3rem; font-weight: 800; color: #00c2ff; margin-bottom: 20px; padding-right: 40px; }
+        .modal-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .m-item { background: rgba(255,255,255,0.04); padding: 8px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); text-align: center; }
+        .m-label { font-size: 0.6rem; color: #aaa; text-transform: uppercase; font-weight: 800; margin-bottom: 2px; }
+        .m-val { font-size: 0.85rem; font-weight: 700; color: #fff; }
 
         .loading-text {
             position: absolute;
@@ -590,6 +593,9 @@ def render_search_interface(df: pd.DataFrame):
             if (!r) return;
             
             const finalImg = fixDriveUrl(r.BK_image || '');
+            
+            // Auto-scroll to top of search component so modal is visible
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             
             modalBody.innerHTML = `
                 <div class="modal-title">${r.BK_name}</div>
