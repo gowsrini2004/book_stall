@@ -226,6 +226,7 @@ if st.session_state.show_admin_login and not st.session_state.is_admin:
         with c2:
             if st.button("Cancel", use_container_width=True):
                 st.session_state.show_admin_login = False
+                st.query_params.clear() # Clear ?login=admin from URL
                 st.rerun()
     st.stop() # Prevents showing the search UI below
 
