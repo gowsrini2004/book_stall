@@ -555,7 +555,7 @@ def render_search_interface(df: pd.DataFrame):
 
         .book-name {
 // ... existing CSS ...
-            font-size: 1rem;
+            font-size: 1.2rem;
             font-weight: 700;
             line-height: 1.4;
             color: #ffffff;
