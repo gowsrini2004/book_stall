@@ -335,6 +335,26 @@ def render_search_interface(df: pd.DataFrame):
         }
         #search-btn:hover { background: #00ace6; }
 
+        #clear-btn {
+            position: absolute;
+            right: 52px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 50%;
+            color: #aaa;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+        #clear-btn:hover { background: rgba(255, 255, 255, 0.2); color: white; }
+
         #results-area {
             margin-top: 10px;
             padding-bottom: 200px; /* Extra space at the bottom to prevent clipping */
@@ -545,6 +565,7 @@ def render_search_interface(df: pd.DataFrame):
     <div id="search-container">
         <div style="position: relative;">
             <input type="text" id="search-input" placeholder="Start Typing to Search..." autocomplete="off">
+            <button id="clear-btn" onclick="clearSearch()">✕</button>
             <button id="search-btn" onclick="performSearch(document.getElementById('search-input').value, 'all')">
                 <svg style="width:18px; height:18px;" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"></path></svg>
             </button>
@@ -570,10 +591,19 @@ def render_search_interface(df: pd.DataFrame):
     <script>
         const allData = {{search_json}};
         const input = document.getElementById('search-input');
+        const clearBtn = document.getElementById('clear-btn');
         const dropdown = document.getElementById('dropdown');
         const resultsArea = document.getElementById('results-area');
         const modalOverlay = document.getElementById('modal-overlay');
         const modalBody = document.getElementById('modal-body');
+
+        window.clearSearch = () => {
+            input.value = '';
+            clearBtn.style.display = 'none';
+            dropdown.style.display = 'none';
+            performSearch('', 'all');
+            input.focus();
+        };
         
         let currentResults = [];
         let displayLimit = 50;
@@ -699,6 +729,8 @@ def render_search_interface(df: pd.DataFrame):
         input.oninput = (e) => {
             const val = e.target.value.trim().toLowerCase();
             const originalVal = e.target.value;
+            
+            clearBtn.style.display = originalVal ? 'flex' : 'none';
             
             if (!val) {
                 dropdown.style.display = 'none';
