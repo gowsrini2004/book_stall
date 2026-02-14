@@ -8,10 +8,8 @@ st.set_page_config(page_title="BK Search Pro", layout="centered")  # better for 
 
 CONFIG_PATH = Path("config.json")
 ADMIN_PASSWORD = "mother"
-SHEET_ID = "1KWB2qujX8G4FcbGX_S9H7-jGflFED7-KzPvpCz6Ru-E"
-SHEET_NAME = "Sheet1"
 
-APP_FIELDS = ["BK_Number", "BK_name", "BK_row"]  # standard names inside the app
+APP_FIELDS = ["BK_Number", "BK_name", "BK_rate", "BK_row"]  # standard names inside the app
 
 
 # ---------------------------
@@ -107,6 +105,26 @@ st.markdown(
         background: #00c2ff22;
         border: 1px solid #00c2ff55;
       }
+      .rate-badge {
+        display:inline-block;
+        padding: 10px 14px;
+        border-radius: 14px;
+        font-weight: 800;
+        font-size: 1.1rem;
+        background: #00ffc222;
+        border: 1px solid #00ffc255;
+        color: #00ffc2;
+      }
+      .tag-badge {
+        display:inline-block;
+        padding: 10px 14px;
+        border-radius: 14px;
+        font-weight: 800;
+        font-size: 1.1rem;
+        background: #ffc10722;
+        border: 1px solid #ffc10755;
+        color: #ffc107;
+      }
       .muted { opacity: 0.8; font-size: 0.95rem; }
       .tiny { opacity: 0.75; font-size: 0.85rem; }
       .rowline { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; }
@@ -171,9 +189,12 @@ if st.session_state.show_admin_login and not st.session_state.is_admin:
 # Load sheet (if configured)
 # ---------------------------
 df_raw, load_error = None, None
-if SHEET_ID and SHEET_NAME:
+s_id = extract_sheet_id(cfg.get("sheet_url", ""))
+s_name = cfg.get("sheet_name", "Sheet1")
+
+if s_id and s_name:
     try:
-        df_raw = fetch_sheet_df(SHEET_ID, SHEET_NAME)
+        df_raw = fetch_sheet_df(s_id, s_name)
     except Exception as e:
         load_error = str(e)
 
@@ -208,7 +229,7 @@ if st.session_state.is_admin:
 
     with tabs[1]:
         st.subheader("Dynamic Column Mapping")
-        st.caption(f"Connected to Sheet: {SHEET_NAME}")
+        st.caption(f"Connected to Sheet: {s_name}")
 
         if load_error:
             st.error(f"Could not load sheet: {load_error}")
@@ -232,6 +253,11 @@ if st.session_state.is_admin:
                 "App field: BK_name (Book Name)",
                 options=options,
                 index=options.index(current.get("BK_name", "")) if current.get("BK_name", "") in options else 0,
+            )
+            new_mapping["BK_rate"] = st.selectbox(
+                "App field: BK_rate (Book Rate / Price)",
+                options=options,
+                index=options.index(current.get("BK_rate", "")) if current.get("BK_rate", "") in options else 0,
             )
             new_mapping["BK_row"] = st.selectbox(
                 "App field: BK_row (Rack / Row / Location)",
@@ -286,7 +312,7 @@ else:
     st.markdown('<div class="big-search">', unsafe_allow_html=True)
     query = st.text_input(
         "Search",
-        placeholder="Type: 1 or test or AA1 ...",
+        placeholder="Start Typing to Search",
         label_visibility="collapsed",
     )
     st.markdown("</div>", unsafe_allow_html=True)
@@ -327,10 +353,13 @@ else:
                 f"""
                 <div class="result-card">
                   <div class="rowline">
-                    <div><b>#{r['BK_Number']}</b> <span class="tiny">Book No</span></div>
-                    <div class="rack-badge">📍 {r['BK_row']}</div>
+                    <div class="tag-badge">#{r['BK_Number']} <span style="font-size: 0.75rem; opacity: 0.8; font-weight: 400; margin-left: 2px;">Tag</span></div>
+                    <div style="display:flex; gap:8px;">
+                        <div class="rate-badge">₹ {r['BK_rate']}</div>
+                        <div class="rack-badge">📍 {r['BK_row']}</div>
+                    </div>
                   </div>
-                  <div style="margin-top:8px; font-size:1.05rem;"><b>{r['BK_name']}</b></div>
+                  <div style="margin-top:12px; font-size:1.1rem; font-weight: 600;">{r['BK_name']}</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -346,4 +375,4 @@ else:
             st.warning("No matches found.")
         elif total_found == 1:
             one = results.iloc[0]
-            st.success(f"✅ Location: **{one['BK_row']}**  |  Book: **{one['BK_name']}** (#{one['BK_Number']})")
+            st.success(f"✅ Location: **{one['BK_row']}**  |  Rate: **₹ {one['BK_rate']}**")
