@@ -120,10 +120,10 @@ st.markdown(
         display:inline-block;
         padding: 10px 14px;
         border-radius: 14px;
-        font-weight: 800;
+        font-weight: 600;
         font-size: 1.1rem;
-        background: #00c2ff11;
-        border: 1px solid #00c2ff44;
+        background: #00c2ff08;
+        border: 1px solid #00c2ff22;
         color: #00c2ff;
       }
       .tag-badge {
