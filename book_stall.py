@@ -374,10 +374,16 @@ def render_search_interface(df: pd.DataFrame):
         .result-card {
             border: 1px solid rgba(255,255,255,0.12);
             border-radius: 20px;
-            padding: 24px 22px; /* Increased vertical padding */
-            margin-bottom: 25px; /* More space between cards */
+            padding: 24px 22px; 
+            margin-bottom: 25px; 
             background: rgba(255,255,255,0.03);
             animation: fadeIn 0.3s ease-out;
+            transition: all 0.2s ease;
+        }
+        .result-card:hover { 
+            background: rgba(255,255,255,0.05);
+            transform: translateY(-2px);
+            border-color: rgba(255,255,255,0.2);
         }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
@@ -746,7 +752,7 @@ def render_search_interface(df: pd.DataFrame):
             // Hidden Admin Portal Trigger
             if (qClean === 'admin_login') {
                 resultsArea.innerHTML = `
-                    <div class="result-card" onclick="window.top.location.search = '?login=admin'" style="cursor:pointer; border: 2px solid #00c2ff; background: rgba(0, 194, 255, 0.05); transition: transform 0.2s;">
+                    <div class="result-card" onclick="window.open('?login=admin', '_top')" style="cursor:pointer; border: 2px solid #00c2ff; background: rgba(0, 194, 255, 0.05); transition: transform 0.2s;">
                         <div class="badge-row">
                             <div class="placeholder-badge"></div>
                             <div class="placeholder-badge"></div>
