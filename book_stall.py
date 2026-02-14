@@ -9,12 +9,7 @@ st.set_page_config(page_title="BK Search Pro", layout="centered")  # better for 
 CONFIG_PATH = Path("config.json")
 ADMIN_PASSWORD = "mother"
 
-# Handle hidden admin trigger from URL
-if "login" in st.query_params:
-    st.session_state.show_admin_login = True
-    # Clear parameter without full reload if possible, but st.rerun is safer to ensure state sync
-    st.query_params.clear()
-    st.rerun()
+# Handle hidden admin trigger - handled after session state is ready
 
 APP_FIELDS = ["BK_Number", "BK_name", "BK_rate", "BK_row", "BK_image"]  # standard names inside the app
 
@@ -126,6 +121,13 @@ if "is_admin" not in st.session_state:
     st.session_state.is_admin = False
 if "show_admin_login" not in st.session_state:
     st.session_state.show_admin_login = False
+
+# Catch the login trigger from the hidden search button
+q_login = st.query_params.get("login", "")
+if q_login == "admin" or (isinstance(q_login, list) and "admin" in q_login):
+    st.session_state.show_admin_login = True
+    st.query_params.clear() 
+    st.rerun()
 
 cfg = load_config()
 cfg.setdefault("sheet_url", "")
@@ -752,21 +754,23 @@ def render_search_interface(df: pd.DataFrame):
             // Hidden Admin Portal Trigger
             if (qClean === 'admin_login') {
                 resultsArea.innerHTML = `
-                    <div style="padding: 20px; text-align: center;">
-                        <a href="?login=admin" target="_top" style="
+                    <div style="padding: 25px 0; text-align: center;">
+                        <a href="./?login=admin" target="_top" style="
                             text-decoration: none;
-                            display: inline-block;
-                            padding: 16px 32px;
+                            display: block;
+                            padding: 20px;
                             background: #00c2ff;
                             color: white;
                             font-weight: 800;
-                            border-radius: 14px;
-                            box-shadow: 0 4px 15px rgba(0, 194, 255, 0.4);
-                            font-size: 1.1rem;
-                            transition: transform 0.2s;
-                        " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-                            🔑 ACCESS ADMIN LOGIN
+                            border-radius: 16px;
+                            box-shadow: 0 8px 25px rgba(0, 194, 255, 0.4);
+                            font-size: 1.2rem;
+                            border: none;
+                            cursor: pointer;
+                        ">
+                            � CLICK TO OPEN ADMIN LOGIN
                         </a>
+                        <p style="margin-top:15px; opacity:0.6; font-size:0.9rem;">(Clicking this will reload the page to show the login box)</p>
                     </div>
                 `;
                 return;
