@@ -11,6 +11,20 @@ ADMIN_PASSWORD = "mother"
 
 # Handle hidden admin trigger - handled after session state is ready
 
+st.markdown("""
+    <style>
+    /* Force main app background to dark */
+    .stApp {
+        background-color: #0e1117;
+        color: #fafafa;
+    }
+    /* Force sidebar to dark if used */
+    [data-testid="stSidebar"] {
+        background-color: #262730;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 APP_FIELDS = ["BK_Number", "BK_name", "BK_rate", "BK_row", "BK_image"]  # standard names inside the app
 
 
